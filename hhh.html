@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persis | The Royal Header</title>
+    
+    <!-- استفاده از فونت‌های گوگل برای حس سلطنتی و مدرن -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        /* تنظیمات اولیه بادی */
+        body {
+            margin: 0; padding: 0; background-color: #050505; color: #fff;
+            height: 300vh; /* برای تست اسکرول */
+            font-family: 'Jost', sans-serif;
+        }
+
+        /* ---------- هدر سلطنتی جدید ---------- */
+        .royal-header {
+            position: fixed; top: 0; left: 0; width: 100%;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 5%;
+            background: transparent;
+            z-index: 9999;
+            /* انیمیشن نرم برای تغییر حالت اسکرول */
+            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border-bottom: 1px solid transparent;
+            box-sizing: border-box;
+        }
+
+        /* --- حالت اسکرول شده --- */
+        .royal-header.scrolled {
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(15px) saturate(180%); /* شیشه‌ای درخشان */
+            padding: 12px 5%;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), inset 0 -1px 0 rgba(212, 175, 55, 0.1);
+        }
+
+        /* --- نوار پیشرفت طلایی زیر هدر --- */
+        .header-progress {
+            position: absolute; bottom: -1px; left: 0; height: 2px;
+            background: linear-gradient(90deg, #b8860b, #fce39a, #b8860b);
+            width: 0%; 
+            opacity: 0;
+            transition: opacity 0.3s ease, width 0.1s linear;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
+        }
+        .royal-header.scrolled .header-progress { opacity: 1; }
+
+        /* --- لوگوی برند (سه‌بعدی) --- */
+        .brand {
+            display: flex; align-items: center; gap: 15px;
+            perspective: 1000px; /* برای افکت سه‌بعدی */
+            cursor: pointer;
+        }
+        .brand-icon {
+            width: 44px; height: 44px; fill: none; stroke: #d4af37; stroke-width: 2.5;
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+        }
+        .brand:hover .brand-icon {
+            transform: rotateY(-15deg) rotateZ(8deg) scale(1.1);
+            filter: drop-shadow(0 0 20px rgba(212, 175, 55, 0.8));
+        }
+        .brand-text {
+            font-family: 'Cinzel', serif; font-size: 1.8rem; color: #f0f0f0;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.1);
+            transition: all 0.4s ease; letter-spacing: 1px;
+        }
+        .brand-text span { color: #d4af37; animation: goldenPulse 3s infinite alternate; }
+        .brand:hover .brand-text { color: #d4af37; text-shadow: 0 0 25px rgba(212, 175, 55, 0.3); }
+        
+        @keyframes goldenPulse {
+            0% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
+            100% { text-shadow: 0 0 30px rgba(212, 175, 55, 0.9); }
+        }
+
+        /* --- منوی ناوبری --- */
+        .nav-links { display: flex; gap: 35px; list-style: none; margin: 0; padding: 0; }
+        .nav-link {
+            text-decoration: none; color: #e0e0e0; font-weight: 300;
+            text-transform: uppercase; font-size: 0.85rem; letter-spacing: 2px;
+            position: relative; transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: ''; position: absolute; bottom: -6px; left: 50%; width: 0; height: 1.5px;
+            background: #d4af37; transform: translateX(-50%);
+            transition: width 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            box-shadow: 0 0 10px #d4af37; border-radius: 2px;
+        }
+        .nav-link:hover, .nav-link.active { color: #d4af37; }
+        .nav-link:hover::after, .nav-link.active::after { width: 100%; }
+
+        /* --- ابزارهای هدر (زبان و جستجو) --- */
+        .header-tools { display: flex; align-items: center; gap: 25px; }
+        
+        /* منوی زبان */
+        .lang-wrap { position: relative; }
+        .lang-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0; padding: 6px 18px; border-radius: 25px;
+            font-family: inherit; font-size: 0.8rem; letter-spacing: 1px;
+            cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
+        }
+        .lang-btn:hover { border-color: #d4af37; color: #d4af37; background: rgba(212, 175, 55, 0.05); }
+        .lang-btn svg { width: 10px; height: 10px; transition: transform 0.3s; }
+        .lang-wrap.open .lang-btn svg { transform: rotate(180deg); }
+
+        .lang-dropdown {
+            position: absolute; top: 140%; right: 0;
+            background: rgba(5, 5, 5, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px;
+            padding: 10px 0; min-width: 140px;
+            opacity: 0; transform: translateY(15px) scale(0.98);
+            visibility: hidden; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .lang-wrap.open .lang-dropdown { opacity: 1; transform: translateY(0) scale(1); visibility: visible; }
+        
+        .lang-dropdown a {
+            display: block; padding: 10px 25px; color: #b0b0b0; text-decoration: none;
+            transition: all 0.2s ease; border-left: 3px solid transparent; font-size: 0.9rem;
+        }
+        .lang-dropdown a:hover { color: #d4af37; background: rgba(212, 175, 55, 0.1); border-left-color: #d4af37; padding-left: 30px; }
+
+        /* فیلد جستجو */
+        .search-area { display: flex; align-items: center; flex-direction: row-reverse; }
+        .search-btn {
+            background: transparent; border: none; color: #e0e0e0; font-size: 1.2rem;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            padding: 5px; position: relative; z-index: 2;
+        }
+        .search-btn:hover { color: #d4af37; transform: scale(1.2) rotate(10deg); }
+        
+        .search-input {
+            width: 0; padding: 0; border: none; background: transparent; color: #fff;
+            outline: none; transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            border-bottom: 1px solid transparent; margin-right: 8px;
+            font-family: inherit; font-size: 0.9rem; opacity: 0;
+        }
+        .search-input.active {
+            width: 200px; padding: 5px 0; border-bottom: 1px solid #d4af37; opacity: 1;
+        }
+
+        /* --- بخشی برای نمایش اسکرول --- */
+        .spacer-content {
+            margin-top: 100vh; padding: 100px; text-align: center; color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== هدر جدید و جذاب ==================== -->
+    <header class="royal-header" id="royal-header">
+        <!-- نوار پیشرفت طلایی مخفی -->
+        <div class="header-progress" id="scroll-progress"></div>
+
+        <!-- بخش لوگو -->
+        <div class="brand">
+            <svg class="brand-icon" viewBox="0 0 100 100">
+                <!-- یک نماد ساده شده از فروهر یا بال -->
+                <path d="M50,20 L65,50 L80,30 L70,60 L90,55 L75,75 L95,85 L75,90 L85,100 L50,85 L15,100 L25,90 L5,85 L25,75 L10,55 L30,60 L20,30 L35,50 Z" stroke-linejoin="round"/>
+                <circle cx="50" cy="40" r="8" fill="#d4af37" stroke="none"/>
+            </svg>
+            <div class="brand-text">Pers<span>is</span></div>
+        </div>
+
+        <!-- منوی ناوبری -->
+        <nav>
+            <ul class="nav-links">
+                <li><a href="#" class="nav-link active">Home</a></li>
+                <li><a href="#" class="nav-link">Civilizations</a></li>
+                <li><a href="#" class="nav-link">Artifacts</a></li>
+                <li><a href="#" class="nav-link">Timeline</a></li>
+                <li><a href="#" class="nav-link">About</a></li>
+            </ul>
+        </nav>
+
+        <!-- ابزارهای سمت راست -->
+        <div class="header-tools">
+            <!-- منوی زبان -->
+            <div class="lang-wrap">
+                <button class="lang-btn" id="langBtn">
+                    EN
+                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="lang-dropdown">
+                    <a href="#">English</a>
+                    <a href="#">فارسی</a>
+                </div>
+            </div>
+
+            <!-- جستجو -->
+            <div class="search-area">
+                <button class="search-btn" id="searchBtn">🔍</button>
+                <input type="text" class="search-input" id="searchInput" placeholder="Search history...">
+            </div>
+        </div>
+    </header>
+
+    <!-- فضای خالی برای تست اسکرول -->
+    <div class="spacer-content">
+        <h2 style="color:#d4af37; font-family: 'Cinzel';">Scroll Down to see the Magic</h2>
+        <p>Observe the header transform into a glowing glass-morphism bar.</p>
+    </div>
+
+    <script>
+        // 1. مدیریت اسکرول (تغییر حالت هدر و نوار پیشرفت)
+        const header = document.getElementById('royal-header');
+        const progressBar = document.getElementById('scroll-progress');
+
+        window.addEventListener('scroll', () => {
+            const scrollY = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrollPercent = (scrollY / docHeight) * 100;
+
+            // آپدیت نوار طلایی
+            progressBar.style.width = scrollPercent + '%';
+
+            // تغییر حالت هدر
+            if (scrollY > 60) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // 2. مدیریت منوی زبان
+        const langBtn = document.getElementById('langBtn');
+        const langWrap = document.querySelector('.lang-wrap');
+        
+        langBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            langWrap.classList.toggle('open');
+        });
+
+        document.addEventListener('click', () => {
+            if(langWrap.classList.contains('open')) {
+                langWrap.classList.remove('open');
+            }
+        });
+
+        // 3. مدیریت فیلد جستجو
+        const searchBtn = document.getElementById('searchBtn');
+        const searchInput = document.getElementById('searchInput');
+
+        searchBtn.addEventListener('click', () => {
+            searchInput.classList.toggle('active');
+            if (searchInput.classList.contains('active')) {
+                searchInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>

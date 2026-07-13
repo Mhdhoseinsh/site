@@ -3,52 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستم تشخیص خواب راننده</title>
-    <!-- لود کردن کتابخانه MediaPipe از طریق شبکه (نیاز به اینترنت دارد) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm/vision_bundle.js" crossorigin="anonymous"></script>
+    <title>سیستم تشخیص خواب راننده (نسخه پایدار)</title>
+    <!-- بارگذاری کتابخانه‌های سبک از طریق CDN که در ایران جواب می‌دهد -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; }
-        #video-container { position: relative; display: inline-block; margin-top: 20px; border: 2px solid #555; }
-        canvas { position: absolute; top: 0; left: 0; transform: scaleX(-1); }
-        video { transform: scaleX(-1); }
-        #status { font-size: 24px; margin-top: 10px; font-weight: bold; }
-        .alert { color: red; }
-        .safe { color: green; }
-        button { padding: 15px 30px; font-size: 18px; margin-top: 20px; background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 8px; }
+        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; margin: 0; padding: 20px; }
+        #video-container { position: relative; display: inline-block; margin-top: 20px; border: 2px solid #555; width: 100%; max-width: 640px; }
+        video { width: 100%; height: auto; transform: scaleX(-1); }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+        #status { font-size: 22px; margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 10px; }
+        .alert { background-color: #d32f2f; color: white; }
+        .safe { background-color: #388e3c; color: white; }
+        .warning { background-color: #f57c00; color: white; }
+        button { padding: 15px 30px; font-size: 20px; margin-top: 20px; background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 8px; width: 90%; max-width: 300px; }
         button:hover { background: #45a049; }
     </style>
 </head>
 <body>
     <h1>🚗 سیستم هشدار خواب آلودگی</h1>
-    <button id="startBtn">شروع دوربین و تشخیص</button>
+    <button id="startBtn">💪شروع دوربین و تشخیص</button>
     <div id="video-container">
-        <video id="webcam" width="640" height="480" autoplay playsinline></video>
-        <canvas id="canvas" width="640" height="480"></canvas>
+        <video id="webcam" playsinline></video>
+        <canvas id="canvas"></canvas>
     </div>
-    <div id="status" class="safe">😊 چشم ها باز هستند (خواب نیستید)</div>
+    <div id="status" class="safe">😊 منتظر شروع دوربین...</div>
 
     <script>
-        // متغیرها و تنظیمات
-        let video = document.getElementById('webcam');
-        let canvas = document.getElementById('canvas');
-        let ctx = canvas.getContext('2d');
-        let statusDiv = document.getElementById('status');
-        let faceLandmarker;
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusDiv = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+
         let frameCounter = 0;
         let alarmPlaying = false;
-        const EAR_THRESHOLD = 0.22; // آستانه بسته بودن چشم
-        const CONSECUTIVE_FRAMES = 15; // تعداد فریم های پشت سر هم
+        let audioCtx;
 
-        // نقاط چشم در مدل MediaPipe
+        // تنظیمات تشخیص چشم
+        const EAR_THRESHOLD = 0.22; 
+        const CONSECUTIVE_FRAMES = 12; 
         const LEFT_EYE = [33, 159, 133, 158, 153, 145];
         const RIGHT_EYE = [362, 387, 263, 386, 373, 374];
 
-        // تابع محاسبه فاصله بین دو نقطه
         function distance(p1, p2) {
             return Math.hypot(p1.x - p2.x, p1.y - p2.y);
         }
 
-        // تابع محاسبه EAR
         function calculateEAR(landmarks, eyeIndices) {
             let p1 = landmarks[eyeIndices[0]];
             let p2 = landmarks[eyeIndices[1]];
@@ -60,55 +62,49 @@
             return ear;
         }
 
-        // پخش صدای هشدار با استفاده از مرورگر (بدون نیاز به فایل صوتی)
+        // سیستم صدا (مخصوص گوشی که نیاز به کلیک کاربر دارد)
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
         function playAlarm() {
             if (alarmPlaying) return;
             alarmPlaying = true;
+            initAudio(); // اطمینان از فعال شدن صدا
+
+            // پخش صدای گفتار (توجه! خواب آلودگی!)
             const utterance = new SpeechSynthesisUtterance("توجه! خواب آلودگی! بیدار شوید!");
             utterance.rate = 0.9;
-            utterance.pitch = 1.2;
+            utterance.pitch = 1.1;
+            utterance.lang = 'fa-IR';
             speechSynthesis.speak(utterance);
-            // پخش بوق تکراری با استفاده از Web Audio API
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // پخش بوق هشدار دهنده
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            oscillator.frequency.value = 800;
+            gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             oscillator.start();
-            setTimeout(() => { oscillator.stop(); alarmPlaying = false; }, 2000);
+            oscillator.stop(audioCtx.currentTime + 1.5);
+            
+            setTimeout(() => { alarmPlaying = false; }, 2000);
         }
 
-        // راه‌اندازی MediaPipe
-        async function initMediaPipe() {
-            const filesetResolver = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-            );
-            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
-                baseOptions: {
-                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
-                },
-                outputFaceBlendshapes: false,
-                runningMode: "VIDEO"
-            });
-            detectLoop(); // شروع حلقه تشخیص
-        }
-
-        // حلقه اصلی تشخیص (با استفاده از requestAnimationFrame)
-        async function detectLoop() {
-            if (!video.videoWidth) {
-                requestAnimationFrame(detectLoop);
-                return;
-            }
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const startTimeMs = performance.now();
-            const results = faceLandmarker.detectForVideo(video, startTimeMs);
-
-            if (results.faceLandmarks && results.faceLandmarks.length > 0) {
-                const landmarks = results.faceLandmarks[0];
-                // رسم نقاط صورت
+        function onResults(results) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+                
+                // رسم نقاط صورت (فقط برای نمایش)
                 ctx.fillStyle = "cyan";
                 for (let i = 0; i < landmarks.length; i++) {
                     ctx.beginPath();
@@ -121,15 +117,20 @@
                 let rightEAR = calculateEAR(landmarks, RIGHT_EYE);
                 let avgEAR = (leftEAR + rightEAR) / 2.0;
 
+                // نمایش مقدار
+                ctx.fillStyle = "yellow";
+                ctx.font = "20px Arial";
+                ctx.fillText("EAR: " + avgEAR.toFixed(2), 10, 30);
+
                 if (avgEAR < EAR_THRESHOLD) {
                     frameCounter++;
                     if (frameCounter >= CONSECUTIVE_FRAMES) {
                         statusDiv.innerText = "🚨 خطر! خواب آلودگی! بیدار شوید!";
                         statusDiv.className = "alert";
-                        playAlarm();
+                        playAlarm(); // صدای هشدار
                     } else {
                         statusDiv.innerText = "⚠️ پلک زدن طولانی...";
-                        statusDiv.className = "alert";
+                        statusDiv.className = "warning";
                     }
                 } else {
                     frameCounter = 0;
@@ -137,23 +138,57 @@
                     statusDiv.className = "safe";
                 }
             } else {
-                statusDiv.innerText = "👀 چهره شناسایی نشد. به دوربین نگاه کنید.";
-                statusDiv.className = "safe";
+                statusDiv.innerText = "👀 چهره‌ای پیدا نشد. به دوربین نگاه کنید.";
+                statusDiv.className = "warning";
             }
-            requestAnimationFrame(detectLoop);
         }
 
-        // راه‌اندازی دوربین
-        document.getElementById('startBtn').addEventListener('click', async () => {
+        // راه‌اندازی
+        startBtn.addEventListener('click', async () => {
+            startBtn.disabled = true;
+            startBtn.innerText = "در حال بارگذاری هوش مصنوعی... (کمی صبر کنید)";
+            
+            initAudio();
+
+            // تنظیمات FaceMesh
+            const faceMesh = new FaceMesh({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                }
+            });
+
+            faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            faceMesh.onResults(onResults);
+
+            // راه‌اندازی دوربین
+            const camera = new Camera(video, {
+                onFrame: async () => {
+                    try {
+                        await faceMesh.send({image: video});
+                    } catch (e) {
+                        console.log(e);
+                    }
+                },
+                width: 640,
+                height: 480
+            });
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                await video.play();
-                document.getElementById('startBtn').style.display = 'none';
-                await initMediaPipe();
+                await camera.start();
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                startBtn.style.display = 'none';
+                statusDiv.innerText = "😊 سیستم روشن است. چشم ها را ببندید.";
             } catch (err) {
-                alert("دوربین پیدا نشد یا دسترسی به آن رد شد! لطفا دسترسی دوربین را بدهید.");
-                console.error(err);
+                alert("دسترسی به دوربین رد شد! لطفا در تنظیمات مرورگر به این صفحه دسترسی دوربین را بدهید.");
+                startBtn.disabled = false;
+                startBtn.innerText = "شروع دوربین و تشخیص";
             }
         });
     </script>

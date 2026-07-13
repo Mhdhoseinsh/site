@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستم تشخیص خواب راننده (نسخه پایدار)</title>
-    <!-- بارگذاری کتابخانه‌های سبک از طریق CDN که در ایران جواب می‌دهد -->
+    <title>سیستم تشخیص خواب (نسخه دقیق)</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -23,7 +22,7 @@
 </head>
 <body>
     <h1>🚗 سیستم هشدار خواب آلودگی</h1>
-    <button id="startBtn">💪شروع دوربین و تشخیص</button>
+    <button id="startBtn">😂شروع دوربین و تشخیص</button>
     <div id="video-container">
         <video id="webcam" playsinline></video>
         <canvas id="canvas"></canvas>
@@ -41,9 +40,10 @@
         let alarmPlaying = false;
         let audioCtx;
 
-        // تنظیمات تشخیص چشم
-        const EAR_THRESHOLD = 0.22; 
-        const CONSECUTIVE_FRAMES = 12; 
+        // تنظیمات جدید (برای گوشی بسیار بهینه شده)
+        const EAR_THRESHOLD = 0.15;  // آستانه جدید (چون روی گوشی چشم بسته عدد 0.18 هم نشان می‌دهد)
+        const CONSECUTIVE_FRAMES = 6; // فقط 6 فریم طول میکشه تا آلارم بزنه
+
         const LEFT_EYE = [33, 159, 133, 158, 153, 145];
         const RIGHT_EYE = [362, 387, 263, 386, 373, 374];
 
@@ -62,7 +62,6 @@
             return ear;
         }
 
-        // سیستم صدا (مخصوص گوشی که نیاز به کلیک کاربر دارد)
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -75,16 +74,14 @@
         function playAlarm() {
             if (alarmPlaying) return;
             alarmPlaying = true;
-            initAudio(); // اطمینان از فعال شدن صدا
+            initAudio(); 
 
-            // پخش صدای گفتار (توجه! خواب آلودگی!)
             const utterance = new SpeechSynthesisUtterance("توجه! خواب آلودگی! بیدار شوید!");
             utterance.rate = 0.9;
             utterance.pitch = 1.1;
             utterance.lang = 'fa-IR';
             speechSynthesis.speak(utterance);
 
-            // پخش بوق هشدار دهنده
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             oscillator.type = 'sawtooth';
@@ -94,7 +91,6 @@
             gainNode.connect(audioCtx.destination);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 1.5);
-            
             setTimeout(() => { alarmPlaying = false; }, 2000);
         }
 
@@ -104,7 +100,7 @@
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
                 
-                // رسم نقاط صورت (فقط برای نمایش)
+                // رسم نقاط صورت
                 ctx.fillStyle = "cyan";
                 for (let i = 0; i < landmarks.length; i++) {
                     ctx.beginPath();
@@ -117,17 +113,18 @@
                 let rightEAR = calculateEAR(landmarks, RIGHT_EYE);
                 let avgEAR = (leftEAR + rightEAR) / 2.0;
 
-                // نمایش مقدار
+                // نمایش مقدار EAR روی صفحه (خیلی مهم! عدد را ببینید)
                 ctx.fillStyle = "yellow";
-                ctx.font = "20px Arial";
-                ctx.fillText("EAR: " + avgEAR.toFixed(2), 10, 30);
+                ctx.font = "bold 30px Arial";
+                ctx.fillText("EAR: " + avgEAR.toFixed(3), 20, 50);
 
+                // منطق تشخیص
                 if (avgEAR < EAR_THRESHOLD) {
                     frameCounter++;
                     if (frameCounter >= CONSECUTIVE_FRAMES) {
                         statusDiv.innerText = "🚨 خطر! خواب آلودگی! بیدار شوید!";
                         statusDiv.className = "alert";
-                        playAlarm(); // صدای هشدار
+                        playAlarm();
                     } else {
                         statusDiv.innerText = "⚠️ پلک زدن طولانی...";
                         statusDiv.className = "warning";
@@ -147,10 +144,8 @@
         startBtn.addEventListener('click', async () => {
             startBtn.disabled = true;
             startBtn.innerText = "در حال بارگذاری هوش مصنوعی... (کمی صبر کنید)";
-            
             initAudio();
 
-            // تنظیمات FaceMesh
             const faceMesh = new FaceMesh({
                 locateFile: (file) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
@@ -166,7 +161,6 @@
 
             faceMesh.onResults(onResults);
 
-            // راه‌اندازی دوربین
             const camera = new Camera(video, {
                 onFrame: async () => {
                     try {
@@ -184,9 +178,9 @@
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 startBtn.style.display = 'none';
-                statusDiv.innerText = "😊 سیستم روشن است. چشم ها را ببندید.";
+                statusDiv.innerText = "😊 سیستم روشن است. به عدد زرد روی صفحه نگاه کنید!";
             } catch (err) {
-                alert("دسترسی به دوربین رد شد! لطفا در تنظیمات مرورگر به این صفحه دسترسی دوربین را بدهید.");
+                alert("دسترسی به دوربین رد شد!");
                 startBtn.disabled = false;
                 startBtn.innerText = "شروع دوربین و تشخیص";
             }

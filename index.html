@@ -1,190 +1,196 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستم تشخیص خواب (نسخه دقیق)</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; margin: 0; padding: 20px; }
-        #video-container { position: relative; display: inline-block; margin-top: 20px; border: 2px solid #555; width: 100%; max-width: 640px; }
-        video { width: 100%; height: auto; transform: scaleX(-1); }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
-        #status { font-size: 22px; margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 10px; }
-        .alert { background-color: #d32f2f; color: white; }
-        .safe { background-color: #388e3c; color: white; }
-        .warning { background-color: #f57c00; color: white; }
-        button { padding: 15px 30px; font-size: 20px; margin-top: 20px; background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 8px; width: 90%; max-width: 300px; }
-        button:hover { background: #45a049; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>اسکنر آفلاین QR - متن‌های پشت سر هم</title>
+  <style>
+    body {
+      font-family: Tahoma, sans-serif;
+      background: #1e1e2f;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+    }
+    #video {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 12px;
+      border: 3px solid #4fc3f7;
+      margin: 15px auto;
+      display: block;
+    }
+    .hidden-canvas {
+      display: none;
+    }
+    .text-box {
+      background: #2c2c3e;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 400px;
+      min-height: 120px;
+      font-size: 1.4rem;
+      word-break: break-word;
+      border: 2px dashed #4fc3f7;
+    }
+    .list-container {
+      max-width: 400px;
+      margin: 15px auto;
+      text-align: right;
+    }
+    .scanned-item {
+      background: #3a3a52;
+      padding: 10px 15px;
+      margin: 8px 0;
+      border-radius: 8px;
+      font-size: 1rem;
+      border-right: 4px solid #4fc3f7;
+    }
+    button {
+      background: #4fc3f7;
+      color: #000;
+      border: none;
+      padding: 12px 25px;
+      font-size: 1rem;
+      border-radius: 30px;
+      margin: 10px 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button.clear {
+      background: #ff8a80;
+    }
+    #status {
+      color: #b0bec5;
+      margin-top: 5px;
+    }
+  </style>
 </head>
 <body>
-    <h1>🚗 سیستم هشدار خواب آلودگی</h1>
-    <button id="startBtn">😂شروع دوربین و تشخیص</button>
-    <div id="video-container">
-        <video id="webcam" playsinline></video>
-        <canvas id="canvas"></canvas>
-    </div>
-    <div id="status" class="safe">😊 منتظر شروع دوربین...</div>
+  <h2>📱 اسکنر آفلاین QR</h2>
+  <p id="status">در حال دسترسی به دوربین...</p>
+  <video id="video" autoplay playsinline></video>
+  <!-- canvas مخفی برای تحلیل فریم‌ها -->
+  <canvas id="canvas" class="hidden-canvas"></canvas>
 
-    <script>
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const statusDiv = document.getElementById('status');
-        const startBtn = document.getElementById('startBtn');
+  <div class="text-box" id="currentText">منتظر اولین اسکن...</div>
 
-        let frameCounter = 0;
-        let alarmPlaying = false;
-        let audioCtx;
+  <div>
+    <button onclick="clearList()" class="clear">🧹 پاک کردن لیست</button>
+    <button onclick="togglePause()">⏯️ توقف/ادامه</button>
+  </div>
 
-        // تنظیمات جدید (برای گوشی بسیار بهینه شده)
-        const EAR_THRESHOLD = 0.15;  // آستانه جدید (چون روی گوشی چشم بسته عدد 0.18 هم نشان می‌دهد)
-        const CONSECUTIVE_FRAMES = 6; // فقط 6 فریم طول میکشه تا آلارم بزنه
+  <div class="list-container" id="list"></div>
 
-        const LEFT_EYE = [33, 159, 133, 158, 153, 145];
-        const RIGHT_EYE = [362, 387, 263, 386, 373, 374];
+  <!-- کتابخونه jsQR (لوکال یا از CDN - برای آفلاین کامل دانلودش کن و کنار فایل بذار) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <!-- برای آفلاین می‌تونی فایل رو دانلود کنی و آدرس رو به صورت محلی بدی، مثل: -->
+  <!-- <script src="./jsQR.min.js"></script> -->
 
-        function distance(p1, p2) {
-            return Math.hypot(p1.x - p2.x, p1.y - p2.y);
-        }
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const currentTextDiv = document.getElementById('currentText');
+    const listDiv = document.getElementById('list');
+    const status = document.getElementById('status');
 
-        function calculateEAR(landmarks, eyeIndices) {
-            let p1 = landmarks[eyeIndices[0]];
-            let p2 = landmarks[eyeIndices[1]];
-            let p3 = landmarks[eyeIndices[2]];
-            let p4 = landmarks[eyeIndices[3]];
-            let p5 = landmarks[eyeIndices[4]];
-            let p6 = landmarks[eyeIndices[5]];
-            let ear = (distance(p2, p6) + distance(p3, p5)) / (2.0 * distance(p1, p4));
-            return ear;
-        }
+    let scanning = true;       // آیا اسکن فعال باشه؟
+    let lastScanned = '';      // آخرین متن اسکن‌شده (برای جلوگیری از تکرار پشت‌سرهم)
+    let scannedTexts = [];     // آرایه‌ای از همهٔ متن‌های اسکن شده
 
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        function playAlarm() {
-            if (alarmPlaying) return;
-            alarmPlaying = true;
-            initAudio(); 
-
-            const utterance = new SpeechSynthesisUtterance("توجه! خواب آلودگی! بیدار شوید!");
-            utterance.rate = 0.9;
-            utterance.pitch = 1.1;
-            utterance.lang = 'fa-IR';
-            speechSynthesis.speak(utterance);
-
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.type = 'sawtooth';
-            oscillator.frequency.value = 800;
-            gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 1.5);
-            setTimeout(() => { alarmPlaying = false; }, 2000);
-        }
-
-        function onResults(results) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const landmarks = results.multiFaceLandmarks[0];
-                
-                // رسم نقاط صورت
-                ctx.fillStyle = "cyan";
-                for (let i = 0; i < landmarks.length; i++) {
-                    ctx.beginPath();
-                    ctx.arc(landmarks[i].x * canvas.width, landmarks[i].y * canvas.height, 1, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-
-                // محاسبه EAR
-                let leftEAR = calculateEAR(landmarks, LEFT_EYE);
-                let rightEAR = calculateEAR(landmarks, RIGHT_EYE);
-                let avgEAR = (leftEAR + rightEAR) / 2.0;
-
-                // نمایش مقدار EAR روی صفحه (خیلی مهم! عدد را ببینید)
-                ctx.fillStyle = "yellow";
-                ctx.font = "bold 30px Arial";
-                ctx.fillText("EAR: " + avgEAR.toFixed(3), 20, 50);
-
-                // منطق تشخیص
-                if (avgEAR < EAR_THRESHOLD) {
-                    frameCounter++;
-                    if (frameCounter >= CONSECUTIVE_FRAMES) {
-                        statusDiv.innerText = "🚨 خطر! خواب آلودگی! بیدار شوید!";
-                        statusDiv.className = "alert";
-                        playAlarm();
-                    } else {
-                        statusDiv.innerText = "⚠️ پلک زدن طولانی...";
-                        statusDiv.className = "warning";
-                    }
-                } else {
-                    frameCounter = 0;
-                    statusDiv.innerText = "😊 چشم ها باز هستند (خواب نیستید)";
-                    statusDiv.className = "safe";
-                }
-            } else {
-                statusDiv.innerText = "👀 چهره‌ای پیدا نشد. به دوربین نگاه کنید.";
-                statusDiv.className = "warning";
-            }
-        }
-
-        // راه‌اندازی
-        startBtn.addEventListener('click', async () => {
-            startBtn.disabled = true;
-            startBtn.innerText = "در حال بارگذاری هوش مصنوعی... (کمی صبر کنید)";
-            initAudio();
-
-            const faceMesh = new FaceMesh({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-                }
-            });
-
-            faceMesh.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            faceMesh.onResults(onResults);
-
-            const camera = new Camera(video, {
-                onFrame: async () => {
-                    try {
-                        await faceMesh.send({image: video});
-                    } catch (e) {
-                        console.log(e);
-                    }
-                },
-                width: 640,
-                height: 480
-            });
-
-            try {
-                await camera.start();
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                startBtn.style.display = 'none';
-                statusDiv.innerText = "😊 سیستم روشن است. به عدد زرد روی صفحه نگاه کنید!";
-            } catch (err) {
-                alert("دسترسی به دوربین رد شد!");
-                startBtn.disabled = false;
-                startBtn.innerText = "شروع دوربین و تشخیص";
-            }
+    // شروع دوربین
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }  // دوربین پشت (موبایل)
         });
-    </script>
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        video.play();
+        status.textContent = '✅ دوربین آماده است. QR را مقابل دوربین بگیر.';
+        requestAnimationFrame(scanLoop);
+      } catch (err) {
+        status.textContent = '❌ دسترسی به دوربین ممکن نشد. مطمئن شو که از لوکال هاست یا HTTPS استفاده می‌کنی.';
+        console.error(err);
+      }
+    }
+
+    // حلقهٔ اسکن (هر فریم بررسی می‌شه)
+    function scanLoop() {
+      if (!scanning) {
+        requestAnimationFrame(scanLoop);
+        return;
+      }
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // استفاده از jsQR برای رمزگشایی
+        const code = jsQR(imageData.data, canvas.width, canvas.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code && code.data !== lastScanned) {
+          // یه QR جدید پیدا شده
+          const scannedText = code.data.trim();
+          if (scannedText !== '') {
+            handleNewScan(scannedText);
+            lastScanned = scannedText;
+            // یه مکث کوتاه برای جلوگیری از اسکن تکراری توی چند فریم
+            setTimeout(() => { lastScanned = ''; }, 1500);
+          }
+        }
+      }
+      requestAnimationFrame(scanLoop);
+    }
+
+    // وقتی یه متن جدید اسکن میشه
+    function handleNewScan(text) {
+      // نمایش در باکس بالایی (آخرین متن اسکن شده)
+      currentTextDiv.textContent = text;
+      
+      // اضافه کردن به لیست
+      scannedTexts.push(text);
+      updateListUI();
+
+      // می‌تونی ویبره کنی (در صورت پشتیبانی)
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+    }
+
+    // بروزرسانی لیست در صفحه
+    function updateListUI() {
+      listDiv.innerHTML = '';
+      scannedTexts.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'scanned-item';
+        div.textContent = `${index + 1}. ${item}`;
+        listDiv.appendChild(div);
+      });
+    }
+
+    // پاک کردن کل لیست
+    function clearList() {
+      scannedTexts = [];
+      currentTextDiv.textContent = 'منتظر اسکن جدید...';
+      updateListUI();
+    }
+
+    // توقف/ادامه اسکن
+    function togglePause() {
+      scanning = !scanning;
+      status.textContent = scanning ? '🔍 در حال اسکن...' : '⏸️ اسکن متوقف شد.';
+    }
+
+    // اجرا
+    startCamera();
+  </script>
 </body>
 </html>

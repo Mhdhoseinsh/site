@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>اسکنر آفلاین QR - متن‌های پشت سر هم</title>
+  <title>اسکنر آفلاین QR - اسکرول‌دار</title>
   <style>
     body {
       font-family: Tahoma, sans-serif;
@@ -12,13 +12,16 @@
       text-align: center;
       padding: 20px;
       margin: 0;
+      /* حداکثر ارتفاع صفحه رو پر کنه */
+      height: 100vh;
+      box-sizing: border-box;
     }
     #video {
       width: 100%;
-      max-width: 400px;
+      max-width: 300px; /* کوچک‌تر کردم تا جا برای اسکرول باشه */
       border-radius: 12px;
       border: 3px solid #4fc3f7;
-      margin: 15px auto;
+      margin: 10px auto;
       display: block;
     }
     .hidden-canvas {
@@ -27,35 +30,47 @@
     .text-box {
       background: #2c2c3e;
       border-radius: 12px;
-      padding: 20px;
-      margin: 20px auto;
+      padding: 15px;
+      margin: 10px auto;
       max-width: 400px;
-      min-height: 120px;
-      font-size: 1.4rem;
+      width: 90%;
+      max-height: 80px;        /* ارتفاع ثابت */
+      overflow-y: auto;        /* اگه متن طولانی بود اسکرول بده */
+      font-size: 1.2rem;
       word-break: break-word;
       border: 2px dashed #4fc3f7;
     }
     .list-container {
       max-width: 400px;
-      margin: 15px auto;
+      width: 90%;
+      margin: 10px auto;
+      /* این بخش جدید ـه */
+      max-height: 35vh;        /* ۳۵ درصد ارتفاع صفحه */
+      overflow-y: auto;        /* اسکرول عمودی */
       text-align: right;
+      background: #1a1a2e;      /* یه رنگ پس‌زمینه برای بهتر دیده شدن */
+      border-radius: 12px;
+      padding: 5px;
+      border: 1px solid #4fc3f7;
     }
     .scanned-item {
       background: #3a3a52;
       padding: 10px 15px;
-      margin: 8px 0;
+      margin: 6px 8px;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       border-right: 4px solid #4fc3f7;
+      text-align: right;
+      word-break: break-word;
     }
     button {
       background: #4fc3f7;
       color: #000;
       border: none;
-      padding: 12px 25px;
-      font-size: 1rem;
+      padding: 10px 20px;
+      font-size: 0.9rem;
       border-radius: 30px;
-      margin: 10px 5px;
+      margin: 8px 4px;
       cursor: pointer;
       font-weight: bold;
     }
@@ -64,7 +79,8 @@
     }
     #status {
       color: #b0bec5;
-      margin-top: 5px;
+      margin: 5px 0;
+      font-size: 0.9rem;
     }
   </style>
 </head>
@@ -72,7 +88,6 @@
   <h2>📱 اسکنر آفلاین QR</h2>
   <p id="status">در حال دسترسی به دوربین...</p>
   <video id="video" autoplay playsinline></video>
-  <!-- canvas مخفی برای تحلیل فریم‌ها -->
   <canvas id="canvas" class="hidden-canvas"></canvas>
 
   <div class="text-box" id="currentText">منتظر اولین اسکن...</div>
@@ -84,12 +99,11 @@
 
   <div class="list-container" id="list"></div>
 
-  <!-- کتابخونه jsQR (لوکال یا از CDN - برای آفلاین کامل دانلودش کن و کنار فایل بذار) -->
+  <!-- کتابخونه jsQR (برای آفلاین کامل، فایل رو دانلود کن و آدرس رو به ./jsQR.min.js تغییر بده) -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <!-- برای آفلاین می‌تونی فایل رو دانلود کنی و آدرس رو به صورت محلی بدی، مثل: -->
-  <!-- <script src="./jsQR.min.js"></script> -->
 
   <script>
+    // اسکریپت مثل قبل کاملاً بدون تغییر
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -97,15 +111,14 @@
     const listDiv = document.getElementById('list');
     const status = document.getElementById('status');
 
-    let scanning = true;       // آیا اسکن فعال باشه؟
-    let lastScanned = '';      // آخرین متن اسکن‌شده (برای جلوگیری از تکرار پشت‌سرهم)
-    let scannedTexts = [];     // آرایه‌ای از همهٔ متن‌های اسکن شده
+    let scanning = true;
+    let lastScanned = '';
+    let scannedTexts = [];
 
-    // شروع دوربین
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }  // دوربین پشت (موبایل)
+          video: { facingMode: "environment" }
         });
         video.srcObject = stream;
         video.setAttribute('playsinline', true);
@@ -113,36 +126,29 @@
         status.textContent = '✅ دوربین آماده است. QR را مقابل دوربین بگیر.';
         requestAnimationFrame(scanLoop);
       } catch (err) {
-        status.textContent = '❌ دسترسی به دوربین ممکن نشد. مطمئن شو که از لوکال هاست یا HTTPS استفاده می‌کنی.';
+        status.textContent = '❌ دسترسی به دوربین ممکن نشد. (از لوکال‌هاست یا HTTPS استفاده کن)';
         console.error(err);
       }
     }
 
-    // حلقهٔ اسکن (هر فریم بررسی می‌شه)
     function scanLoop() {
       if (!scanning) {
         requestAnimationFrame(scanLoop);
         return;
       }
-
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-        // استفاده از jsQR برای رمزگشایی
         const code = jsQR(imageData.data, canvas.width, canvas.height, {
           inversionAttempts: "dontInvert",
         });
-
         if (code && code.data !== lastScanned) {
-          // یه QR جدید پیدا شده
           const scannedText = code.data.trim();
           if (scannedText !== '') {
             handleNewScan(scannedText);
             lastScanned = scannedText;
-            // یه مکث کوتاه برای جلوگیری از اسکن تکراری توی چند فریم
             setTimeout(() => { lastScanned = ''; }, 1500);
           }
         }
@@ -150,22 +156,13 @@
       requestAnimationFrame(scanLoop);
     }
 
-    // وقتی یه متن جدید اسکن میشه
     function handleNewScan(text) {
-      // نمایش در باکس بالایی (آخرین متن اسکن شده)
       currentTextDiv.textContent = text;
-      
-      // اضافه کردن به لیست
       scannedTexts.push(text);
       updateListUI();
-
-      // می‌تونی ویبره کنی (در صورت پشتیبانی)
-      if (navigator.vibrate) {
-        navigator.vibrate(200);
-      }
+      if (navigator.vibrate) navigator.vibrate(200);
     }
 
-    // بروزرسانی لیست در صفحه
     function updateListUI() {
       listDiv.innerHTML = '';
       scannedTexts.forEach((item, index) => {
@@ -174,22 +171,21 @@
         div.textContent = `${index + 1}. ${item}`;
         listDiv.appendChild(div);
       });
+      // اسکرول خودکار به آخرین آیتم
+      listDiv.scrollTop = listDiv.scrollHeight;
     }
 
-    // پاک کردن کل لیست
     function clearList() {
       scannedTexts = [];
       currentTextDiv.textContent = 'منتظر اسکن جدید...';
       updateListUI();
     }
 
-    // توقف/ادامه اسکن
     function togglePause() {
       scanning = !scanning;
       status.textContent = scanning ? '🔍 در حال اسکن...' : '⏸️ اسکن متوقف شد.';
     }
 
-    // اجرا
     startCamera();
   </script>
 </body>

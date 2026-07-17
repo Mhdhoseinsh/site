@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>اسکنر آفلاین QR - اسکرول‌دار</title>
+  <title>اسکنر آفلاین QR - پایدار و با پشتیبانی از فایل</title>
   <style>
     body {
       font-family: Tahoma, sans-serif;
@@ -12,13 +12,15 @@
       text-align: center;
       padding: 20px;
       margin: 0;
-      /* حداکثر ارتفاع صفحه رو پر کنه */
       height: 100vh;
       box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     #video {
       width: 100%;
-      max-width: 300px; /* کوچک‌تر کردم تا جا برای اسکرول باشه */
+      max-width: 300px;
       border-radius: 12px;
       border: 3px solid #4fc3f7;
       margin: 10px auto;
@@ -34,8 +36,8 @@
       margin: 10px auto;
       max-width: 400px;
       width: 90%;
-      max-height: 80px;        /* ارتفاع ثابت */
-      overflow-y: auto;        /* اگه متن طولانی بود اسکرول بده */
+      max-height: 80px;
+      overflow-y: auto;
       font-size: 1.2rem;
       word-break: break-word;
       border: 2px dashed #4fc3f7;
@@ -44,11 +46,10 @@
       max-width: 400px;
       width: 90%;
       margin: 10px auto;
-      /* این بخش جدید ـه */
-      max-height: 35vh;        /* ۳۵ درصد ارتفاع صفحه */
-      overflow-y: auto;        /* اسکرول عمودی */
+      max-height: 30vh;          /* کمی فضا برای دکمه‌های جدید */
+      overflow-y: auto;
       text-align: right;
-      background: #1a1a2e;      /* یه رنگ پس‌زمینه برای بهتر دیده شدن */
+      background: #1a1a2e;
       border-radius: 12px;
       padding: 5px;
       border: 1px solid #4fc3f7;
@@ -70,17 +71,26 @@
       padding: 10px 20px;
       font-size: 0.9rem;
       border-radius: 30px;
-      margin: 8px 4px;
+      margin: 6px 4px;
       cursor: pointer;
       font-weight: bold;
     }
     button.clear {
       background: #ff8a80;
     }
+    button.export {
+      background: #81c784;
+    }
+    button.import {
+      background: #ffb74d;
+    }
     #status {
       color: #b0bec5;
       margin: 5px 0;
       font-size: 0.9rem;
+    }
+    .file-input {
+      display: none;
     }
   </style>
 </head>
@@ -95,15 +105,17 @@
   <div>
     <button onclick="clearList()" class="clear">🧹 پاک کردن لیست</button>
     <button onclick="togglePause()">⏯️ توقف/ادامه</button>
+    <button onclick="exportToFile()" class="export">📥 خروجی JSON</button>
+    <button onclick="document.getElementById('importFile').click()" class="import">📤 ورودی از فایل</button>
+    <input type="file" id="importFile" class="file-input" accept=".json" onchange="importFromFile(event)">
   </div>
 
   <div class="list-container" id="list"></div>
 
-  <!-- کتابخونه jsQR (برای آفلاین کامل، فایل رو دانلود کن و آدرس رو به ./jsQR.min.js تغییر بده) -->
+  <!-- کتابخونه jsQR (برای آفلاین فایل رو دانلود کن و لوکال کن) -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <script>
-    // اسکریپت مثل قبل کاملاً بدون تغییر
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -113,27 +125,51 @@
 
     let scanning = true;
     let lastScanned = '';
-    let scannedTexts = [];
+    let scannedTexts = [];        // هر عنصر به صورت { text, time }
+    let stream = null;            // برای قطع و وصل دوربین
+    let animationId = null;
 
+    // راه‌اندازی اولیه دوربین
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        if (stream) {
+          // اگر قبلاً استریمی هست، ابتدا قطع کن
+          stopCamera();
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" }
         });
         video.srcObject = stream;
         video.setAttribute('playsinline', true);
-        video.play();
+        await video.play();
         status.textContent = '✅ دوربین آماده است. QR را مقابل دوربین بگیر.';
-        requestAnimationFrame(scanLoop);
+        scanning = true;
+        if (!animationId) {
+          animationId = requestAnimationFrame(scanLoop);
+        }
       } catch (err) {
         status.textContent = '❌ دسترسی به دوربین ممکن نشد. (از لوکال‌هاست یا HTTPS استفاده کن)';
         console.error(err);
       }
     }
 
+    // قطع کامل دوربین
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      video.srcObject = null;
+    }
+
+    // حلقهٔ اسکن
     function scanLoop() {
       if (!scanning) {
-        requestAnimationFrame(scanLoop);
+        animationId = requestAnimationFrame(scanLoop);
         return;
       }
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -153,39 +189,101 @@
           }
         }
       }
-      requestAnimationFrame(scanLoop);
+      animationId = requestAnimationFrame(scanLoop);
     }
 
+    // وقتی متن جدید اسکن می‌شه
     function handleNewScan(text) {
       currentTextDiv.textContent = text;
-      scannedTexts.push(text);
+      const now = new Date();
+      scannedTexts.push({
+        text: text,
+        time: now.toLocaleString('fa-IR')
+      });
       updateListUI();
       if (navigator.vibrate) navigator.vibrate(200);
     }
 
+    // بروزرسانی لیست در صفحه
     function updateListUI() {
       listDiv.innerHTML = '';
       scannedTexts.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'scanned-item';
-        div.textContent = `${index + 1}. ${item}`;
+        div.innerHTML = `${index + 1}. ${item.text} <br><small style="color:#aaa;">${item.time}</small>`;
         listDiv.appendChild(div);
       });
-      // اسکرول خودکار به آخرین آیتم
       listDiv.scrollTop = listDiv.scrollHeight;
     }
 
+    // پاک کردن لیست
     function clearList() {
       scannedTexts = [];
       currentTextDiv.textContent = 'منتظر اسکن جدید...';
       updateListUI();
     }
 
+    // توقف/ادامه اسکن
     function togglePause() {
       scanning = !scanning;
       status.textContent = scanning ? '🔍 در حال اسکن...' : '⏸️ اسکن متوقف شد.';
     }
 
+    // خروجی گرفتن به صورت فایل JSON
+    function exportToFile() {
+      const dataStr = JSON.stringify(scannedTexts, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `qr-scans-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ورودی از فایل (آپلود JSON)
+    function importFromFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (Array.isArray(data)) {
+            // اعتبارسنجی ساده
+            scannedTexts = data.filter(item => item.text && item.time);
+            updateListUI();
+            currentTextDiv.textContent = scannedTexts.length ? scannedTexts[scannedTexts.length-1].text : 'منتظر اسکن جدید...';
+            status.textContent = `📂 ${scannedTexts.length} رکورد از فایل بارگذاری شد.`;
+          } else {
+            alert('فرمت فایل معتبر نیست. آرایه‌ای از اسکن‌ها انتظار می‌رفت.');
+          }
+        } catch (error) {
+          alert('خطا در خواندن فایل. مطمئن شو فایل JSON معتبر است.');
+        }
+      };
+      reader.readAsText(file);
+      // ریست کردن input برای آپلود دوبارهٔ همان فایل
+      event.target.value = '';
+    }
+
+    // مدیریت خارج شدن از صفحه / برگشت
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // صفحه مخفی شده: توقف اسکن و قطع دوربین
+        scanning = false;
+        stopCamera();
+        status.textContent = '⏸️ صفحه در پس‌زمینه است.';
+      } else {
+        // برگشت به صفحه: دوباره دوربین رو راه بنداز
+        status.textContent = '🔄 در حال راه‌اندازی مجدد دوربین...';
+        startCamera();
+      }
+    });
+
+    // شروع اولیه
     startCamera();
   </script>
 </body>

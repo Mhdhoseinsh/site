@@ -3,186 +3,186 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پل ماهواره‌ای QR - پایدار و تست‌شده</title>
+  <title>اسکنر QR ساده و تضمینی</title>
   <style>
-    body { font-family: Tahoma; background: #121220; color: #fff; text-align: center; padding: 10px; }
-    .section { background: #1e1e32; border-radius: 20px; padding: 15px; margin: 15px auto; max-width: 600px; border: 1px solid #4fc3f7; }
-    textarea { width: 90%; height: 100px; margin: 10px 0; background: #2c2c42; color: #fff; border: 1px solid #4fc3f7; border-radius: 10px; padding: 10px; }
-    button { background: #4fc3f7; color: #000; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; margin: 5px; }
-    .qr-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 10px 0; }
-    canvas { border: 2px solid #4fc3f7; border-radius: 16px; max-width: 100%; height: auto; }
-    video { width: 100%; max-width: 300px; border-radius: 16px; border: 3px solid #4fc3f7; }
-    .text-box { background: #2c2c42; border: 2px dashed #4fc3f7; border-radius: 12px; padding: 12px; max-height: 100px; overflow-y: auto; word-break: break-word; text-align: right; }
-    .status { color: #b0bec5; font-size: 0.9rem; }
+    body {
+      font-family: Tahoma, sans-serif;
+      background: #121220;
+      color: #fff;
+      text-align: center;
+      padding: 10px;
+    }
+    .section {
+      background: #1e1e32;
+      border-radius: 20px;
+      padding: 15px;
+      margin: 15px auto;
+      max-width: 500px;
+      border: 1px solid #4fc3f7;
+    }
+    textarea {
+      width: 90%;
+      height: 60px;
+      margin: 10px 0;
+      background: #2c2c42;
+      color: #fff;
+      border: 1px solid #4fc3f7;
+      border-radius: 10px;
+      padding: 10px;
+      font-family: inherit;
+    }
+    button {
+      background: #4fc3f7;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+    }
+    canvas {
+      display: block;
+      margin: 10px auto;
+      border: 2px solid #fff;
+      border-radius: 16px;
+    }
+    video {
+      width: 100%;
+      max-width: 300px;
+      border-radius: 16px;
+      border: 3px solid #4fc3f7;
+      margin: 10px auto;
+    }
+    .result-box {
+      background: #2c2c42;
+      border: 2px dashed #4fc3f7;
+      border-radius: 12px;
+      padding: 15px;
+      margin: 10px auto;
+      width: 90%;
+      word-break: break-word;
+      text-align: right;
+      min-height: 40px;
+    }
+    .status {
+      color: #b0bec5;
+      margin: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>📡 پل ماهواره‌ای QR (بدون مشکل اسکن)</h1>
+  <h2>📷 اسکنر QR کاملاً ساده</h2>
 
-  <!-- بخش فرستنده -->
+  <!-- بخش ساخت QR -->
   <div class="section">
-    <h3>📤 فرستنده: متن → QR (حتی ۴۰۰+ کاراکتر)</h3>
-    <textarea id="inputText" placeholder="متن فارسی خود را اینجا بنویسید..."></textarea>
+    <h3>🔳 ساخت QR</h3>
+    <textarea id="textToEncode" placeholder="متن فارسی یا انگلیسی..."></textarea>
     <br>
-    <button onclick="generateQR()">🔳 ساخت QR</button>
-    <div id="qrPanel" style="display:none; margin-top:10px;">
-      <div class="qr-container">
-        <canvas id="qrCanvas" width="600" height="600"></canvas>
-      </div>
-      <p id="chunkInfo" class="status"></p>
-      <button onclick="scanCurrentQR()">📷 تست اسکن همین QR (با دوربین)</button>
-      <button onclick="startQRSequence()">▶ پخش پشت‌سرهم (چند قطعه)</button>
-      <button onclick="stopQRSequence()">⏹ توقف</button>
-    </div>
-    <p id="txStatus" class="status"></p>
+    <button onclick="generateQR()">تولید QR</button>
+    <canvas id="qrCanvas" width="500" height="500" style="display:none;"></canvas>
   </div>
 
-  <!-- بخش گیرنده -->
+  <!-- بخش اسکن -->
   <div class="section">
-    <h3>📥 گیرنده: اسکن و نمایش</h3>
-    <button onclick="startReceiver()">📷 شروع اسکن</button>
-    <button onclick="stopReceiver()">⏹ توقف</button>
-    <video id="rxVideo" autoplay playsinline></video>
-    <canvas id="rxCanvas" hidden></canvas>
-    <div class="text-box" id="decodedText">منتظر اسکن...</div>
-    <p id="rxStatus" class="status">دوربین خاموش</p>
-    <p id="rxProgress">۰ / ۰ قطعه</p>
-    <button onclick="downloadReconstructed()" id="downloadBtn" disabled>💾 دانلود متن</button>
+    <h3>📥 اسکن با دوربین</h3>
+    <button onclick="startScan()">▶ شروع اسکن</button>
+    <button onclick="stopScan()">⏹ توقف</button>
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <canvas id="hiddenCanvas" style="display:none;"></canvas>
+    <div class="result-box" id="scannedText">متن اسکن‌شده اینجا نمایش داده می‌شود</div>
+    <p class="status" id="status">آماده به کار</p>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <!-- کتابخانه‌های لازم -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <script>
-    // ---------- فرستنده ----------
-    let chunks = [];                  // آرایه‌ای از Uint8Array
-    let currentChunkIdx = 0;
-    let seqInterval = null;
-    const MAX_PAYLOAD = 2000;        // کمی کمتر از حداکثر برای اطمینان
-
+    // ---------- ساخت QR ساده ----------
     async function generateQR() {
-      const text = document.getElementById('inputText').value.trim();
-      if (!text) {
-        document.getElementById('txStatus').textContent = 'متنی وارد نشده.';
-        return;
-      }
-
-      // فشرده‌سازی با gzip
-      const encoder = new TextEncoder();
-      const compressed = pako.gzip(encoder.encode(text));
-      document.getElementById('txStatus').textContent = 
-        `متن اصلی ${encoder.encode(text).length} بایت، فشرده ${compressed.length} بایت.`;
-
-      const totalChunks = Math.ceil(compressed.length / MAX_PAYLOAD);
-      chunks = [];
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * MAX_PAYLOAD;
-        const end = Math.min(start + MAX_PAYLOAD, compressed.length);
-        const payload = compressed.slice(start, end);
-        const header = new Uint8Array(4);
-        header[0] = (i >> 8) & 0xFF;
-        header[1] = i & 0xFF;
-        header[2] = (totalChunks >> 8) & 0xFF;
-        header[3] = totalChunks & 0xFF;
-        const packet = new Uint8Array(4 + payload.length);
-        packet.set(header);
-        packet.set(payload, 4);
-        chunks.push(packet);
-      }
-
-      currentChunkIdx = 0;
-      await showQR(currentChunkIdx);
-      document.getElementById('qrPanel').style.display = 'block';
-      document.getElementById('chunkInfo').textContent = 
-        totalChunks > 1 ? `قطعه 1 از ${totalChunks}` : 'یک QR کامل (تک قطعه)';
-    }
-
-    async function showQR(index) {
-      if (index >= chunks.length) return;
+      const text = document.getElementById('textToEncode').value.trim();
+      if (!text) return;
       const canvas = document.getElementById('qrCanvas');
-      // پاک کردن و رسم با اندازه بزرگ
-      await QRCode.toCanvas(canvas, [{ data: chunks[index], mode: 'byte' }], {
-        width: 600,
-        errorCorrectionLevel: 'L',
-        color: { dark: '#000', light: '#fff' }
+      // پاک کردن و نمایش
+      await QRCode.toCanvas(canvas, text, {
+        width: 500,
+        errorCorrectionLevel: 'L',    // حداکثر ظرفیت
+        color: { dark: '#000000', light: '#ffffff' }
       });
+      canvas.style.display = 'block';
     }
 
-    function startQRSequence() {
-      if (chunks.length <= 1) {
-        alert('فقط یک قطعه است. نیازی به پخش پشت‌سرهم نیست.');
-        return;
-      }
-      if (seqInterval) clearInterval(seqInterval);
-      showQR(currentChunkIdx);
-      seqInterval = setInterval(() => {
-        currentChunkIdx = (currentChunkIdx + 1) % chunks.length;
-        showQR(currentChunkIdx);
-      }, 200);
-      document.getElementById('txStatus').textContent = 'پخش خودکار شروع شد.';
-    }
+    // ---------- اسکن QR ----------
+    let stream = null;
+    let animationId = null;
 
-    function stopQRSequence() {
-      if (seqInterval) { clearInterval(seqInterval); seqInterval = null; }
-    }
-
-    // اسکن QR تولیدی با استفاده از دوربین (برای تست)
-    async function scanCurrentQR() {
-      // از همان بخش گیرنده استفاده می‌کند ولی فقط یک بار
+    async function startScan() {
+      // توقف هر اسکن قبلی
+      stopScan();
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment", width: { ideal: 1280 } }
         });
-        const testVideo = document.createElement('video');
-        testVideo.srcObject = stream;
-        testVideo.play();
-        const testCanvas = document.createElement('canvas');
-        const ctx = testCanvas.getContext('2d');
-
-        // چند فریم تلاش کن
-        const scanAttempt = () => {
-          if (testVideo.readyState === testVideo.HAVE_ENOUGH_DATA) {
-            testCanvas.width = testVideo.videoWidth;
-            testCanvas.height = testVideo.videoHeight;
-            ctx.drawImage(testVideo, 0, 0);
-            const imageData = ctx.getImageData(0, 0, testCanvas.width, testCanvas.height);
-            const code = jsQR(imageData.data, testCanvas.width, testCanvas.height, {
-              inversionAttempts: "attemptBoth",
-            });
-            if (code) {
-              // موفقیت
-              if (code.binaryData && code.binaryData.length > 0) {
-                processReceivedData(code.binaryData, code.data);
-              } else {
-                processTextData(code.data);
-              }
-              stream.getTracks().forEach(t => t.stop());
-              testVideo.remove();
-              return;
-            }
-          }
-          requestAnimationFrame(scanAttempt);
-        };
-        scanAttempt();
-        // توقف بعد از 5 ثانیه
-        setTimeout(() => {
-          stream.getTracks().forEach(t => t.stop());
-          testVideo.remove();
-          document.getElementById('txStatus').textContent = 'تست اسکن: QR خوانده نشد.';
-        }, 5000);
-      } catch (e) {
-        document.getElementById('txStatus').textContent = 'دوربین در دسترس نیست.';
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        video.style.display = 'block';
+        await video.play();
+        document.getElementById('status').textContent = 'دوربین فعال شد. QR را مقابل لنز بگیرید.';
+        scanLoop();
+      } catch (err) {
+        document.getElementById('status').textContent = '❌ خطا در دسترسی به دوربین. مطمئن شوید در localhost یا HTTPS هستید.';
       }
     }
 
-    // ---------- گیرنده ----------
-    // همان کد قبلی (بدون تغییر)
-    // ... (کد گیرنده را از پاسخ قبلی کپی کنید) ...
-    // اما تابع processReceivedData را طوری تنظیم کن که اگر فقط یک قطعه کامل بود، مستقیماً نمایش دهد
+    function stopScan() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      document.getElementById('video').style.display = 'none';
+      document.getElementById('status').textContent = 'اسکن متوقف شد.';
+    }
 
-    // برای جلوگیری از طولانی شدن، من توابع گیرنده را دقیقاً مانند پاسخ قبلی قرار می‌دهم
-    // (کد کامل در انتها)
+    function scanLoop() {
+      const video = document.getElementById('video');
+      const hiddenCanvas = document.getElementById('hiddenCanvas');
+      if (!stream || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        animationId = requestAnimationFrame(scanLoop);
+        return;
+      }
+
+      hiddenCanvas.width = video.videoWidth;
+      hiddenCanvas.height = video.videoHeight;
+      const ctx = hiddenCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      const imageData = ctx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+
+      const code = jsQR(imageData.data, hiddenCanvas.width, hiddenCanvas.height, {
+        inversionAttempts: "attemptBoth",
+      });
+
+      if (code) {
+        // QR پیدا شد! متن را مستقیم نمایش بده
+        document.getElementById('scannedText').textContent = code.data;
+        document.getElementById('status').textContent = '✅ اسکن موفق!';
+        // یک لرزش کوچک (در موبایل)
+        if (navigator.vibrate) navigator.vibrate(200);
+        // بعد از ۲ ثانیه دوباره آماده اسکن بعدی
+        setTimeout(() => {
+          document.getElementById('status').textContent = 'آماده برای اسکن بعدی...';
+        }, 2000);
+      }
+
+      animationId = requestAnimationFrame(scanLoop);
+    }
+
+    // آزادسازی دوربین هنگام بستن صفحه
+    window.addEventListener('beforeunload', stopScan);
   </script>
 </body>
 </html>

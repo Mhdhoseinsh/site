@@ -1,188 +1,139 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>اسکنر QR ساده و تضمینی</title>
-  <style>
-    body {
-      font-family: Tahoma, sans-serif;
-      background: #121220;
-      color: #fff;
-      text-align: center;
-      padding: 10px;
-    }
-    .section {
-      background: #1e1e32;
-      border-radius: 20px;
-      padding: 15px;
-      margin: 15px auto;
-      max-width: 500px;
-      border: 1px solid #4fc3f7;
-    }
-    textarea {
-      width: 90%;
-      height: 60px;
-      margin: 10px 0;
-      background: #2c2c42;
-      color: #fff;
-      border: 1px solid #4fc3f7;
-      border-radius: 10px;
-      padding: 10px;
-      font-family: inherit;
-    }
-    button {
-      background: #4fc3f7;
-      color: #000;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 25px;
-      cursor: pointer;
-      font-weight: bold;
-      margin: 5px;
-    }
-    canvas {
-      display: block;
-      margin: 10px auto;
-      border: 2px solid #fff;
-      border-radius: 16px;
-    }
-    video {
-      width: 100%;
-      max-width: 300px;
-      border-radius: 16px;
-      border: 3px solid #4fc3f7;
-      margin: 10px auto;
-    }
-    .result-box {
-      background: #2c2c42;
-      border: 2px dashed #4fc3f7;
-      border-radius: 12px;
-      padding: 15px;
-      margin: 10px auto;
-      width: 90%;
-      word-break: break-word;
-      text-align: right;
-      min-height: 40px;
-    }
-    .status {
-      color: #b0bec5;
-      margin: 5px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اسکنر و سازنده کیوار کد</title>
+    <!-- کتابخانه اسکن کیوار کد -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body { font-family: Tahoma, Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { text-align: center; font-size: 1.5rem; color: #2c3e50; }
+        .section { margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        .section:last-child { border-bottom: none; }
+        h2 { font-size: 1.2rem; color: #3498db; margin-bottom: 15px; }
+        button { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; transition: 0.3s; }
+        button:hover { background: #2980b9; }
+        button.danger { background: #e74c3c; }
+        button.danger:hover { background: #c0392b; }
+        #reader { width: 100%; max-width: 400px; margin: 15px auto; background: #000; border-radius: 8px; overflow: hidden; }
+        #reader video { width: 100%; height: auto; }
+        ul#scanned-list { list-style: none; padding: 0; margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; }
+        ul#scanned-list li { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; background: #fafafa; animation: slideIn 0.3s ease-out; word-break: break-all; }
+        ul#scanned-list li:last-child { border-bottom: none; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .input-group { display: flex; flex-direction: column; gap: 10px; }
+        input[type="text"] { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        #qr-output { display: flex; justify-content: center; margin-top: 15px; }
+        #qr-output img { border: 1px solid #ddd; padding: 10px; background: white; border-radius: 8px; }
+        .status { text-align: center; margin-top: 10px; font-size: 0.9rem; color: #7f8c8d; }
+        .clear-btn { background: #95a5a6; margin-top: 10px; }
+        .clear-btn:hover { background: #7f8c8d; }
+    </style>
 </head>
 <body>
-  <h2>📷 اسکنر QR کاملاً ساده</h2>
+    <div class="container">
+        <h1>📱 اسکنر و سازنده کیوار کد</h1>
 
-  <!-- بخش ساخت QR -->
-  <div class="section">
-    <h3>🔳 ساخت QR</h3>
-    <textarea id="textToEncode" placeholder="متن فارسی یا انگلیسی..."></textarea>
-    <br>
-    <button onclick="generateQR()">تولید QR</button>
-    <canvas id="qrCanvas" width="500" height="500" style="display:none;"></canvas>
-  </div>
+        <!-- بخش اسکن -->
+        <div class="section">
+            <h2>🔍 اسکن کیوار کد (پشت سر هم)</h2>
+            <button id="scan-btn">شروع اسکن دوربین</button>
+            <div id="reader"></div>
+            <div class="status" id="status-msg">برای اسکن، دکمه بالا را بزنید.</div>
+            <div>
+                <button class="clear-btn" id="clear-list-btn">پاک کردن لیست</button>
+            </div>
+            <ul id="scanned-list"></ul>
+        </div>
 
-  <!-- بخش اسکن -->
-  <div class="section">
-    <h3>📥 اسکن با دوربین</h3>
-    <button onclick="startScan()">▶ شروع اسکن</button>
-    <button onclick="stopScan()">⏹ توقف</button>
-    <video id="video" autoplay playsinline style="display:none;"></video>
-    <canvas id="hiddenCanvas" style="display:none;"></canvas>
-    <div class="result-box" id="scannedText">متن اسکن‌شده اینجا نمایش داده می‌شود</div>
-    <p class="status" id="status">آماده به کار</p>
-  </div>
+        <!-- بخش ساخت -->
+        <div class="section">
+            <h2>🛠️ ساخت کیوار کد</h2>
+            <div class="input-group">
+                <input type="text" id="qr-input" placeholder="متن مورد نظر را وارد کنید...">
+                <button id="generate-btn">ساخت کیوار کد</button>
+            </div>
+            <div id="qr-output"></div>
+        </div>
+    </div>
 
-  <!-- کتابخانه‌های لازم -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        // --- بخش اسکن ---
+        const scanner = new Html5Qrcode("reader");
+        const scanBtn = document.getElementById('scan-btn');
+        const statusMsg = document.getElementById('status-msg');
+        const scannedList = document.getElementById('scanned-list');
+        let isScanning = false;
 
-  <script>
-    // ---------- ساخت QR ساده ----------
-    async function generateQR() {
-      const text = document.getElementById('textToEncode').value.trim();
-      if (!text) return;
-      const canvas = document.getElementById('qrCanvas');
-      // پاک کردن و نمایش
-      await QRCode.toCanvas(canvas, text, {
-        width: 500,
-        errorCorrectionLevel: 'L',    // حداکثر ظرفیت
-        color: { dark: '#000000', light: '#ffffff' }
-      });
-      canvas.style.display = 'block';
-    }
+        // تابع موفقیت اسکن
+        function onScanSuccess(decodedText, decodedResult) {
+            // اضافه کردن به لیست
+            const li = document.createElement('li');
+            li.textContent = decodedText;
+            scannedList.appendChild(li);
+            // اسکرول به پایین لیست
+            scannedList.scrollTop = scannedList.scrollHeight;
+            statusMsg.textContent = `✅ متن اسکن شد: ${decodedText.substring(0, 30)}...`;
+        }
 
-    // ---------- اسکن QR ----------
-    let stream = null;
-    let animationId = null;
-
-    async function startScan() {
-      // توقف هر اسکن قبلی
-      stopScan();
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 } }
+        // شروع/توقف اسکن
+        scanBtn.addEventListener('click', () => {
+            if (!isScanning) {
+                scanner.start(
+                    { facingMode: "environment" }, // دوربین عقب
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    onScanSuccess,
+                    (errorMessage) => { /* خطاهای لحظه‌ای نادیده گرفته می‌شود */ }
+                ).then(() => {
+                    isScanning = true;
+                    scanBtn.textContent = "⏹️ توقف اسکن";
+                    scanBtn.classList.add('danger');
+                    statusMsg.textContent = "🔄 دوربین روشن است. کیوار کدها را جلوی دوربین بگیرید.";
+                }).catch((err) => {
+                    statusMsg.textContent = "❌ خطا در دسترسی به دوربین: " + err.message;
+                });
+            } else {
+                scanner.stop().then(() => {
+                    isScanning = false;
+                    scanBtn.textContent = "شروع اسکن دوربین";
+                    scanBtn.classList.remove('danger');
+                    statusMsg.textContent = "⏸️ اسکن متوقف شد.";
+                }).catch((err) => {
+                    statusMsg.textContent = "❌ خطا در توقف: " + err.message;
+                });
+            }
         });
-        const video = document.getElementById('video');
-        video.srcObject = stream;
-        video.style.display = 'block';
-        await video.play();
-        document.getElementById('status').textContent = 'دوربین فعال شد. QR را مقابل لنز بگیرید.';
-        scanLoop();
-      } catch (err) {
-        document.getElementById('status').textContent = '❌ خطا در دسترسی به دوربین. مطمئن شوید در localhost یا HTTPS هستید.';
-      }
-    }
 
-    function stopScan() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-      }
-      document.getElementById('video').style.display = 'none';
-      document.getElementById('status').textContent = 'اسکن متوقف شد.';
-    }
+        // پاک کردن لیست
+        document.getElementById('clear-list-btn').addEventListener('click', () => {
+            scannedList.innerHTML = '';
+            statusMsg.textContent = "🗑️ لیست پاک شد.";
+        });
 
-    function scanLoop() {
-      const video = document.getElementById('video');
-      const hiddenCanvas = document.getElementById('hiddenCanvas');
-      if (!stream || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        animationId = requestAnimationFrame(scanLoop);
-        return;
-      }
+        // --- بخش ساخت کیوار کد ---
+        const generateBtn = document.getElementById('generate-btn');
+        const qrInput = document.getElementById('qr-input');
+        const qrOutput = document.getElementById('qr-output');
 
-      hiddenCanvas.width = video.videoWidth;
-      hiddenCanvas.height = video.videoHeight;
-      const ctx = hiddenCanvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      const imageData = ctx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        generateBtn.addEventListener('click', () => {
+            const text = qrInput.value.trim();
+            if (text === '') {
+                alert('لطفا متنی را وارد کنید.');
+                return;
+            }
+            // استفاده از API رایگان برای ساخت تصویر کیوار کد
+            const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
+            qrOutput.innerHTML = `<img src="${apiUrl}" alt="QR Code" title="کیوار کد برای: ${text}">`;
+            // اسکرول به پایین صفحه برای دیدن کیوار کد
+            qrOutput.scrollIntoView({ behavior: 'smooth' });
+        });
 
-      const code = jsQR(imageData.data, hiddenCanvas.width, hiddenCanvas.height, {
-        inversionAttempts: "attemptBoth",
-      });
-
-      if (code) {
-        // QR پیدا شد! متن را مستقیم نمایش بده
-        document.getElementById('scannedText').textContent = code.data;
-        document.getElementById('status').textContent = '✅ اسکن موفق!';
-        // یک لرزش کوچک (در موبایل)
-        if (navigator.vibrate) navigator.vibrate(200);
-        // بعد از ۲ ثانیه دوباره آماده اسکن بعدی
-        setTimeout(() => {
-          document.getElementById('status').textContent = 'آماده برای اسکن بعدی...';
-        }, 2000);
-      }
-
-      animationId = requestAnimationFrame(scanLoop);
-    }
-
-    // آزادسازی دوربین هنگام بستن صفحه
-    window.addEventListener('beforeunload', stopScan);
-  </script>
+        // پشتیبانی از کلید Enter در فیلد متن
+        qrInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') generateBtn.click();
+        });
+    </script>
 </body>
 </html>

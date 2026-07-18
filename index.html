@@ -3,157 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>اسکنر آفلاین QR - پایدار و با پشتیبانی از فایل</title>
+  <title>اسکنر آفلاین QR - قدرتمند برای متن‌های بلند</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Tahoma, sans-serif;
-      background: #1e1e2f;
-      color: #fff;
+      font-family: 'Tahoma', sans-serif;
+      background: #121220;
+      color: #ffffff;
       text-align: center;
-      padding: 20px;
+      padding: 15px;
       margin: 0;
       height: 100vh;
-      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    #video {
-      width: 100%;
-      max-width: 300px;
-      border-radius: 12px;
-      border: 3px solid #4fc3f7;
-      margin: 10px auto;
-      display: block;
+    h2 {
+      margin: 5px 0 0 0;
+      font-size: 1.5rem;
+      color: #4fc3f7;
     }
-    .hidden-canvas {
+    #status {
+      color: #b0bec5;
+      margin: 5px 0 10px 0;
+      font-size: 0.9rem;
+    }
+    video {
+      width: 100%;
+      max-width: 360px;
+      border-radius: 16px;
+      border: 3px solid #4fc3f7;
+      margin-bottom: 10px;
+      background: #000;
+    }
+    canvas {
       display: none;
     }
     .text-box {
-      background: #2c2c3e;
-      border-radius: 12px;
-      padding: 15px;
-      margin: 10px auto;
-      max-width: 400px;
-      width: 90%;
-      max-height: 80px;
-      overflow-y: auto;
-      font-size: 1.2rem;
-      word-break: break-word;
+      background: #1e1e32;
       border: 2px dashed #4fc3f7;
-    }
-    .list-container {
-      max-width: 400px;
-      width: 90%;
-      margin: 10px auto;
-      max-height: 30vh;          /* کمی فضا برای دکمه‌های جدید */
-      overflow-y: auto;
-      text-align: right;
-      background: #1a1a2e;
       border-radius: 12px;
-      padding: 5px;
-      border: 1px solid #4fc3f7;
-    }
-    .scanned-item {
-      background: #3a3a52;
-      padding: 10px 15px;
-      margin: 6px 8px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      border-right: 4px solid #4fc3f7;
-      text-align: right;
+      padding: 12px;
+      margin: 5px auto;
+      width: 90%;
+      max-width: 400px;
+      max-height: 90px;
+      overflow-y: auto;
+      font-size: 1.1rem;
       word-break: break-word;
+      text-align: right;
+      direction: rtl;
+    }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 10px 0;
     }
     button {
       background: #4fc3f7;
       color: #000;
       border: none;
-      padding: 10px 20px;
+      padding: 10px 18px;
       font-size: 0.9rem;
-      border-radius: 30px;
-      margin: 6px 4px;
+      border-radius: 25px;
       cursor: pointer;
       font-weight: bold;
+      transition: 0.2s;
+      font-family: inherit;
     }
-    button.clear {
+    button:active {
+      transform: scale(0.95);
+    }
+    .clear-btn {
       background: #ff8a80;
     }
-    button.export {
+    .export-btn {
       background: #81c784;
     }
-    button.import {
+    .import-btn {
       background: #ffb74d;
     }
-    #status {
-      color: #b0bec5;
-      margin: 5px 0;
-      font-size: 0.9rem;
+    .list-container {
+      width: 90%;
+      max-width: 400px;
+      background: #1a1a2e;
+      border: 1px solid #4fc3f7;
+      border-radius: 12px;
+      max-height: 35vh;
+      overflow-y: auto;
+      margin-top: 5px;
+      padding: 8px;
+      text-align: right;
     }
-    .file-input {
+    .scanned-item {
+      background: #2c2c42;
+      padding: 10px 12px;
+      margin: 6px 4px;
+      border-radius: 8px;
+      border-right: 4px solid #4fc3f7;
+      font-size: 0.9rem;
+      word-break: break-word;
+    }
+    .scanned-item small {
+      color: #9e9e9e;
+      display: block;
+      margin-top: 4px;
+    }
+    input[type="file"] {
       display: none;
+    }
+    /* اسکرول سفارشی */
+    .list-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .list-container::-webkit-scrollbar-thumb {
+      background: #4fc3f7;
+      border-radius: 10px;
     }
   </style>
 </head>
 <body>
   <h2>📱 اسکنر آفلاین QR</h2>
-  <p id="status">در حال دسترسی به دوربین...</p>
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas" class="hidden-canvas"></canvas>
+  <p id="status">در حال راه‌اندازی دوربین...</p>
 
+  <!-- پخش زنده دوربین -->
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <!-- آخرین متن اسکن شده -->
   <div class="text-box" id="currentText">منتظر اولین اسکن...</div>
 
-  <div>
-    <button onclick="clearList()" class="clear">🧹 پاک کردن لیست</button>
-    <button onclick="togglePause()">⏯️ توقف/ادامه</button>
-    <button onclick="exportToFile()" class="export">📥 خروجی JSON</button>
-    <button onclick="document.getElementById('importFile').click()" class="import">📤 ورودی از فایل</button>
-    <input type="file" id="importFile" class="file-input" accept=".json" onchange="importFromFile(event)">
+  <!-- دکمه‌ها -->
+  <div class="btn-group">
+    <button onclick="clearList()" class="clear-btn">🧹 پاک کردن لیست</button>
+    <button onclick="togglePause()">⏯️ توقف / ادامه</button>
+    <button onclick="exportToFile()" class="export-btn">📥 خروجی JSON</button>
+    <button onclick="document.getElementById('importFile').click()" class="import-btn">📤 ورودی از فایل</button>
+    <input type="file" id="importFile" accept=".json" onchange="importFromFile(event)">
   </div>
 
+  <!-- لیست اسکن‌ها -->
   <div class="list-container" id="list"></div>
 
-  <!-- کتابخونه jsQR (برای آفلاین فایل رو دانلود کن و لوکال کن) -->
+  <!-- کتابخانه jsQR (برای آفلاین کامل فایل را دانلود و آدرس را به ./jsQR.min.js تغییر دهید) -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <script>
+    // المان‌های DOM
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const currentTextDiv = document.getElementById('currentText');
     const listDiv = document.getElementById('list');
     const status = document.getElementById('status');
 
-    let scanning = true;
-    let lastScanned = '';
-    let scannedTexts = [];        // هر عنصر به صورت { text, time }
-    let stream = null;            // برای قطع و وصل دوربین
-    let animationId = null;
+    // متغیرهای حالت
+    let scanning = true;                // آیا اسکن فعال است؟
+    let lastScanned = '';               // آخرین متن اسکن شده (برای جلوگیری از تکرار)
+    let scannedTexts = [];              // آرایه اسکن‌ها (هر عضو: { text, time })
+    let stream = null;                  // جریان دوربین
+    let animationId = null;             // شماره فریم انیمیشن
 
-    // راه‌اندازی اولیه دوربین
+    // ------------------------------------------------------------
+    // ۱. مدیریت دوربین (با رزولوشن بالا)
+    // ------------------------------------------------------------
     async function startCamera() {
       try {
-        if (stream) {
-          // اگر قبلاً استریمی هست، ابتدا قطع کن
-          stopCamera();
-        }
+        // اگر قبلاً دوربینی باز است ببند
+        if (stream) stopCamera();
+
+        // درخواست کیفیت HD برای خواندن QRهای بلند
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }
+          video: {
+            facingMode: "environment",   // دوربین پشت (موبایل)
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
         });
         video.srcObject = stream;
         video.setAttribute('playsinline', true);
         await video.play();
-        status.textContent = '✅ دوربین آماده است. QR را مقابل دوربین بگیر.';
+        status.textContent = '✅ دوربین HD آماده. QR را مقابل دوربین بگیرید.';
         scanning = true;
         if (!animationId) {
           animationId = requestAnimationFrame(scanLoop);
         }
       } catch (err) {
-        status.textContent = '❌ دسترسی به دوربین ممکن نشد. (از لوکال‌هاست یا HTTPS استفاده کن)';
-        console.error(err);
+        // اگر HD در دسترس نبود، تنظیمات پیش‌فرض
+        console.warn('دوربین HD در دسترس نیست، استفاده از حالت عادی:', err);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" }
+          });
+          video.srcObject = stream;
+          video.setAttribute('playsinline', true);
+          await video.play();
+          status.textContent = '✅ دوربین آماده (حالت عادی).';
+          scanning = true;
+          if (!animationId) animationId = requestAnimationFrame(scanLoop);
+        } catch (e) {
+          status.textContent = '❌ دسترسی به دوربین ممکن نشد. (از لوکال‌هاست یا HTTPS استفاده کنید)';
+        }
       }
     }
 
-    // قطع کامل دوربین
     function stopCamera() {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -166,7 +223,9 @@
       video.srcObject = null;
     }
 
-    // حلقهٔ اسکن
+    // ------------------------------------------------------------
+    // ۲. حلقه اسکن (با تنظیمات قوی برای QRهای بلند)
+    // ------------------------------------------------------------
     function scanLoop() {
       if (!scanning) {
         animationId = requestAnimationFrame(scanLoop);
@@ -177,14 +236,18 @@
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // تلاش برای خواندن QR با وارونگی (حالت روشن/تاریک)
         const code = jsQR(imageData.data, canvas.width, canvas.height, {
-          inversionAttempts: "dontInvert",
+          inversionAttempts: "attemptBoth",
         });
+
         if (code && code.data !== lastScanned) {
           const scannedText = code.data.trim();
           if (scannedText !== '') {
             handleNewScan(scannedText);
             lastScanned = scannedText;
+            // جلوگیری از اسکن تکراری در ۱.۵ ثانیه
             setTimeout(() => { lastScanned = ''; }, 1500);
           }
         }
@@ -192,7 +255,9 @@
       animationId = requestAnimationFrame(scanLoop);
     }
 
-    // وقتی متن جدید اسکن می‌شه
+    // ------------------------------------------------------------
+    // ۳. ذخیره و نمایش اسکن جدید
+    // ------------------------------------------------------------
     function handleNewScan(text) {
       currentTextDiv.textContent = text;
       const now = new Date();
@@ -204,33 +269,36 @@
       if (navigator.vibrate) navigator.vibrate(200);
     }
 
-    // بروزرسانی لیست در صفحه
     function updateListUI() {
       listDiv.innerHTML = '';
       scannedTexts.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'scanned-item';
-        div.innerHTML = `${index + 1}. ${item.text} <br><small style="color:#aaa;">${item.time}</small>`;
+        div.innerHTML = `${index + 1}. ${item.text} <small>${item.time}</small>`;
         listDiv.appendChild(div);
       });
-      listDiv.scrollTop = listDiv.scrollHeight;
+      listDiv.scrollTop = listDiv.scrollHeight; // اسکرول خودکار به انتها
     }
 
-    // پاک کردن لیست
+    // ------------------------------------------------------------
+    // ۴. دکمه‌ها: پاک کردن، توقف، خروجی، ورودی
+    // ------------------------------------------------------------
     function clearList() {
       scannedTexts = [];
       currentTextDiv.textContent = 'منتظر اسکن جدید...';
       updateListUI();
     }
 
-    // توقف/ادامه اسکن
     function togglePause() {
       scanning = !scanning;
       status.textContent = scanning ? '🔍 در حال اسکن...' : '⏸️ اسکن متوقف شد.';
     }
 
-    // خروجی گرفتن به صورت فایل JSON
     function exportToFile() {
+      if (scannedTexts.length === 0) {
+        alert('هنوز متنی اسکن نشده است.');
+        return;
+      }
       const dataStr = JSON.stringify(scannedTexts, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -241,9 +309,9 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      status.textContent = `📥 ${scannedTexts.length} رکورد خروجی گرفته شد.`;
     }
 
-    // ورودی از فایل (آپلود JSON)
     function importFromFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -252,32 +320,36 @@
         try {
           const data = JSON.parse(e.target.result);
           if (Array.isArray(data)) {
-            // اعتبارسنجی ساده
             scannedTexts = data.filter(item => item.text && item.time);
             updateListUI();
-            currentTextDiv.textContent = scannedTexts.length ? scannedTexts[scannedTexts.length-1].text : 'منتظر اسکن جدید...';
+            if (scannedTexts.length > 0) {
+              currentTextDiv.textContent = scannedTexts[scannedTexts.length-1].text;
+            } else {
+              currentTextDiv.textContent = 'منتظر اسکن جدید...';
+            }
             status.textContent = `📂 ${scannedTexts.length} رکورد از فایل بارگذاری شد.`;
           } else {
             alert('فرمت فایل معتبر نیست. آرایه‌ای از اسکن‌ها انتظار می‌رفت.');
           }
         } catch (error) {
-          alert('خطا در خواندن فایل. مطمئن شو فایل JSON معتبر است.');
+          alert('خطا در خواندن فایل. مطمئن شوید فایل JSON صحیح است.');
         }
       };
       reader.readAsText(file);
-      // ریست کردن input برای آپلود دوبارهٔ همان فایل
-      event.target.value = '';
+      event.target.value = '';  // ریست input برای استفاده مجدد
     }
 
-    // مدیریت خارج شدن از صفحه / برگشت
+    // ------------------------------------------------------------
+    // ۵. پایداری هنگام تغییر تب یا قفل صفحه
+    // ------------------------------------------------------------
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        // صفحه مخفی شده: توقف اسکن و قطع دوربین
+        // صفحه پنهان شد: توقف اسکن و قطع دوربین
         scanning = false;
         stopCamera();
-        status.textContent = '⏸️ صفحه در پس‌زمینه است.';
+        status.textContent = '⏸️ صفحه در پس‌زمینه، دوربین قطع شد.';
       } else {
-        // برگشت به صفحه: دوباره دوربین رو راه بنداز
+        // برگشت به صفحه: راه‌اندازی مجدد
         status.textContent = '🔄 در حال راه‌اندازی مجدد دوربین...';
         startCamera();
       }

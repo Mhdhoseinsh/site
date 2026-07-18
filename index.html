@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اسکنر و سازنده کیوار کد</title>
-    <!-- کتابخانه اسکن کیوار کد -->
+    <title>اسکنر و سازنده کیوار کد (بدون تکراری)</title>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         body { font-family: Tahoma, Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
@@ -66,16 +65,25 @@
         const statusMsg = document.getElementById('status-msg');
         const scannedList = document.getElementById('scanned-list');
         let isScanning = false;
+        let scannedTexts = []; // آرایه برای ذخیره متن‌های اسکن شده (جلوگیری از تکراری)
 
         // تابع موفقیت اسکن
         function onScanSuccess(decodedText, decodedResult) {
-            // اضافه کردن به لیست
+            // بررسی تکراری بودن
+            if (scannedTexts.includes(decodedText)) {
+                statusMsg.textContent = `⚠️ متن تکراری است: "${decodedText.substring(0, 20)}..." (اضافه نشد)`;
+                return; // خارج میشه و چیزی اضافه نمی‌کنه
+            }
+
+            // اگر جدید بود، اضافه کن
+            scannedTexts.push(decodedText);
             const li = document.createElement('li');
             li.textContent = decodedText;
             scannedList.appendChild(li);
+            
             // اسکرول به پایین لیست
             scannedList.scrollTop = scannedList.scrollHeight;
-            statusMsg.textContent = `✅ متن اسکن شد: ${decodedText.substring(0, 30)}...`;
+            statusMsg.textContent = `✅ متن جدید اسکن شد: ${decodedText.substring(0, 30)}...`;
         }
 
         // شروع/توقف اسکن
@@ -106,10 +114,11 @@
             }
         });
 
-        // پاک کردن لیست
+        // پاک کردن لیست (آرایه رو هم ریست میکنیم)
         document.getElementById('clear-list-btn').addEventListener('click', () => {
             scannedList.innerHTML = '';
-            statusMsg.textContent = "🗑️ لیست پاک شد.";
+            scannedTexts = []; // خالی کردن حافظه متن‌ها
+            statusMsg.textContent = "🗑️ لیست و حافظه تکراری‌ها پاک شد.";
         });
 
         // --- بخش ساخت کیوار کد ---
@@ -123,14 +132,12 @@
                 alert('لطفا متنی را وارد کنید.');
                 return;
             }
-            // استفاده از API رایگان برای ساخت تصویر کیوار کد
             const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
             qrOutput.innerHTML = `<img src="${apiUrl}" alt="QR Code" title="کیوار کد برای: ${text}">`;
-            // اسکرول به پایین صفحه برای دیدن کیوار کد
             qrOutput.scrollIntoView({ behavior: 'smooth' });
         });
 
-        // پشتیبانی از کلید Enter در فیلد متن
+        // پشتیبانی از کلید Enter
         qrInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') generateBtn.click();
         });

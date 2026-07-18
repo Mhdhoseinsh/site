@@ -3,147 +3,217 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پل ماهواره‌ای QR - فرستنده و گیرنده</title>
+  <title>پل ماهواره‌ای QR با فشرده‌سازی gzip</title>
   <style>
-    body { font-family: Tahoma; background: #1a1a2e; color: white; text-align: center; padding: 15px; }
-    button, select, input { padding: 10px; margin: 5px; border-radius: 8px; border: none; font-family: inherit; }
-    .section { background: #252545; border-radius: 16px; padding: 15px; margin: 20px auto; max-width: 500px; }
-    canvas { border: 2px solid #4fc3f7; border-radius: 10px; margin: 10px; }
-    video { width: 100%; max-width: 300px; border-radius: 10px; display: block; margin: 10px auto; }
-    .hidden { display: none; }
-    #status { color: #ccc; }
-    .log { background: #0003; max-height: 100px; overflow-y: auto; text-align: right; padding: 8px; border-radius: 8px; }
+    body {
+      font-family: Tahoma, sans-serif;
+      background: #121220;
+      color: #fff;
+      text-align: center;
+      padding: 15px;
+      margin: 0;
+    }
+    .section {
+      background: #1e1e32;
+      border-radius: 20px;
+      padding: 15px;
+      margin: 20px auto;
+      max-width: 550px;
+      border: 1px solid #4fc3f7;
+    }
+    h3 {
+      color: #4fc3f7;
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 90%;
+      height: 120px;
+      margin: 10px 0;
+      border-radius: 10px;
+      padding: 10px;
+      font-family: Tahoma;
+      font-size: 1rem;
+      background: #2c2c42;
+      color: #fff;
+      border: 1px solid #4fc3f7;
+      resize: vertical;
+    }
+    button {
+      background: #4fc3f7;
+      color: #000;
+      border: none;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+    }
+    button:active { transform: scale(0.95); }
+    canvas {
+      border: 2px solid #4fc3f7;
+      border-radius: 16px;
+      margin: 10px 0;
+    }
+    video {
+      width: 100%;
+      max-width: 320px;
+      border-radius: 16px;
+      border: 3px solid #4fc3f7;
+      margin: 10px auto;
+      display: block;
+    }
+    .text-box {
+      background: #2c2c42;
+      border: 2px dashed #4fc3f7;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px auto;
+      width: 90%;
+      max-height: 100px;
+      overflow-y: auto;
+      word-break: break-word;
+      text-align: right;
+      font-size: 1rem;
+    }
+    .status {
+      color: #b0bec5;
+      margin: 5px;
+      font-size: 0.9rem;
+    }
+    #rxProgress {
+      color: #ffb74d;
+      margin: 5px;
+    }
+    .flex-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
   <h1>📡 پل ماهواره‌ای QR</h1>
 
-  <!-- بخش فرستنده: فایل به QR پشت‌سرهم -->
+  <!-- بخش فرستنده -->
   <div class="section">
-    <h3>📤 فرستنده: فایل → QR (برای ضبط و پخش)</h3>
-    <input type="file" id="fileInput">
+    <h3>📤 فرستنده: متن فارسی → QRهای فشرده</h3>
+    <textarea id="inputText" placeholder="متن فارسی خود را اینجا بنویسید..."></textarea>
     <br>
-    <button onclick="startTransmit()">▶ شروع پخش QRها</button>
-    <button onclick="stopTransmit()">⏹ توقف</button>
-    <button onclick="downloadQRVideo()" style="background:#81c784;">⬇ دریافت ویدیوی QR</button>
-    <canvas id="qrCanvas" width="400" height="400" class="hidden"></canvas>
-    <video id="qrPreview" autoplay muted loop class="hidden"></video>
-    <p id="txStatus">فایلی انتخاب نشده</p>
+    <button onclick="compressAndGenerate()">🗜️ فشرده‌سازی و ساخت QR</button>
+    <div id="qrPanel" style="display:none;">
+      <canvas id="qrCanvas" width="400" height="400"></canvas>
+      <p id="chunkInfo" class="status"></p>
+      <div class="flex-row">
+        <button onclick="startQRSequence()">▶ پخش پشت‌سرهم</button>
+        <button onclick="stopQRSequence()">⏹ توقف</button>
+        <button onclick="downloadQRVideo()">⬇ دریافت ویدیوی QR</button>
+      </div>
+    </div>
+    <p id="txStatus" class="status"></p>
   </div>
 
-  <!-- بخش گیرنده: اسکنر برای بازسازی فایل -->
+  <!-- بخش گیرنده -->
   <div class="section">
-    <h3>📥 گیرنده: اسکن از تلویزیون و بازسازی فایل</h3>
+    <h3>📥 گیرنده: اسکن و بازسازی متن</h3>
     <button onclick="startReceiver()">📷 شروع اسکن</button>
     <button onclick="stopReceiver()">⏹ توقف اسکن</button>
-    <button onclick="downloadFile()" style="background:#ffb74d;" id="downloadBtn" disabled>💾 دانلود فایل بازسازی‌شده</button>
     <video id="rxVideo" autoplay playsinline></video>
-    <canvas id="rxCanvas" class="hidden"></canvas>
-    <div class="log" id="rxLog">وضعیت: آماده</div>
-    <p id="rxProgress">۰ تکه دریافت شده</p>
+    <canvas id="rxCanvas" hidden></canvas>
+    <div class="text-box" id="decodedText">منتظر اسکن...</div>
+    <p id="rxStatus" class="status">دوربین خاموش</p>
+    <p id="rxProgress">۰ / ۰ قطعه</p>
+    <button onclick="downloadReconstructed()" id="downloadBtn" disabled>💾 دانلود متن بازسازی‌شده</button>
   </div>
 
   <!-- کتابخانه‌ها -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 
   <script>
     // ---------- فرستنده ----------
-    let fileData = null;
-    let chunks = [];
-    let currentChunkIndex = 0;
-    let txInterval = null;
-    const CHUNK_SIZE = 2500; // هر QR تا 2953 بایت، ما کمی کمتر برای اطمینان
-    const qrCanvas = document.getElementById('qrCanvas');
-    const txStatus = document.getElementById('txStatus');
+    let chunks = [];                  // آرایه‌ای از Uint8Array (هر عضو یک قطعه کامل با هدر)
+    let currentChunkIdx = 0;
+    let seqInterval = null;
+    const MAX_PAYLOAD = 2500;        // حداکثر بایت مفید در هر QR (با هدر)
 
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(ev) {
-        fileData = new Uint8Array(ev.target.result);
-        const totalChunks = Math.ceil(fileData.length / CHUNK_SIZE);
-        chunks = [];
-        for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, fileData.length);
-          const chunkData = fileData.slice(start, end);
-          // تبدیل باینری به Base64 (برای جلوگیری از مشکل کاراکترهای غیرمجاز در QR)
-          const base64 = arrayBufferToBase64(chunkData);
-          // ایجاد بسته: شماره ترتیب، تعداد کل، و داده (با جداکننده '|')
-          const packet = `${i+1}|${totalChunks}|${base64}`;
-          chunks.push(packet);
-        }
-        txStatus.textContent = `فایل به ${chunks.length} تکه QR تقسیم شد. طول هر تکه بایت: ${CHUNK_SIZE}`;
-        currentChunkIndex = 0;
-      };
-      reader.readAsArrayBuffer(file);
-    });
-
-    function arrayBufferToBase64(buffer) {
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
+    async function compressAndGenerate() {
+      const text = document.getElementById('inputText').value.trim();
+      if (!text) {
+        document.getElementById('txStatus').textContent = 'متنی وارد نشده است.';
+        return;
       }
-      return window.btoa(binary);
+      // فشرده‌سازی با gzip
+      const encoder = new TextEncoder();
+      const compressed = pako.gzip(encoder.encode(text));
+      const totalChunks = Math.ceil(compressed.length / MAX_PAYLOAD);
+
+      // ساخت قطعات با هدر ۴ بایتی (شاخص و تعداد کل)
+      chunks = [];
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * MAX_PAYLOAD;
+        const end = Math.min(start + MAX_PAYLOAD, compressed.length);
+        const payload = compressed.slice(start, end);
+        // هدر: 2 بایت اندیس (big-endian) + 2 بایت تعداد کل
+        const header = new Uint8Array(4);
+        header[0] = (i >> 8) & 0xFF;
+        header[1] = i & 0xFF;
+        header[2] = (totalChunks >> 8) & 0xFF;
+        header[3] = totalChunks & 0xFF;
+        const packet = new Uint8Array(4 + payload.length);
+        packet.set(header);
+        packet.set(payload, 4);
+        chunks.push(packet);
+      }
+
+      document.getElementById('txStatus').textContent = 
+        `متن فشرده شد (${compressed.length} بایت) و به ${chunks.length} قطعه QR تقسیم گردید.`;
+      currentChunkIdx = 0;
+      await showQR(currentChunkIdx);
+      document.getElementById('qrPanel').style.display = 'block';
     }
 
     async function showQR(index) {
-      if (index >= chunks.length) {
-        stopTransmit();
-        txStatus.textContent = 'پخش تمام شد.';
-        return;
-      }
+      if (index >= chunks.length) return;
       const data = chunks[index];
-      try {
-        await QRCode.toCanvas(qrCanvas, data, {
-          width: 400,
-          errorCorrectionLevel: 'L',
-          color: { dark: '#000', light: '#fff' }
-        });
-        qrCanvas.classList.remove('hidden');
-        document.getElementById('qrPreview').classList.add('hidden');
-      } catch (e) {
-        console.error(e);
+      const canvas = document.getElementById('qrCanvas');
+      await QRCode.toCanvas(canvas, [{ data: data, mode: 'byte' }], {
+        width: 400,
+        errorCorrectionLevel: 'L',
+        color: { dark: '#000', light: '#fff' }
+      });
+      document.getElementById('chunkInfo').textContent = 
+        `قطعه ${index + 1} از ${chunks.length}`;
+    }
+
+    function startQRSequence() {
+      if (seqInterval) clearInterval(seqInterval);
+      showQR(currentChunkIdx);
+      seqInterval = setInterval(() => {
+        currentChunkIdx = (currentChunkIdx + 1) % chunks.length;
+        showQR(currentChunkIdx);
+      }, 200); // هر ۲۰۰ میلی‌ثانیه
+      document.getElementById('txStatus').textContent = 'پخش پشت‌سرهم شروع شد.';
+    }
+
+    function stopQRSequence() {
+      if (seqInterval) {
+        clearInterval(seqInterval);
+        seqInterval = null;
       }
+      document.getElementById('txStatus').textContent = 'پخش متوقف شد.';
     }
 
-    function startTransmit() {
-      if (!chunks.length) {
-        txStatus.textContent = 'ابتدا فایل را انتخاب کنید.';
-        return;
-      }
-      stopTransmit(); // پاک کردن قبلی
-      showQR(currentChunkIndex);
-      txInterval = setInterval(() => {
-        currentChunkIndex++;
-        if (currentChunkIndex >= chunks.length) {
-          stopTransmit();
-          txStatus.textContent = 'پخش تمام شد.';
-        } else {
-          showQR(currentChunkIndex);
-        }
-      }, 200); // هر ۲۰۰ میلی‌ثانیه یک QR (۵ فریم در ثانیه) - قابل تنظیم
-      txStatus.textContent = 'در حال پخش...';
-    }
-
-    function stopTransmit() {
-      if (txInterval) clearInterval(txInterval);
-      txInterval = null;
-      qrCanvas.classList.add('hidden');
-    }
-
-    // ساخت ویدیو از QRها (MediaRecorder)
     async function downloadQRVideo() {
-      if (!chunks.length) {
-        alert('فایلی بارگذاری نشده.');
+      if (chunks.length === 0) {
+        alert('ابتدا متن را فشرده و QR بسازید.');
         return;
       }
-      stopTransmit();
-      const canvas = qrCanvas;
-      const stream = canvas.captureStream(5); // 5fps
+      stopQRSequence();
+      const canvas = document.getElementById('qrCanvas');
+      const stream = canvas.captureStream(5);
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
       const recordedChunks = [];
       mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
@@ -155,127 +225,223 @@
         a.download = 'qr-broadcast.webm';
         a.click();
         URL.revokeObjectURL(url);
-        txStatus.textContent = 'ویدیو دانلود شد. می‌توانید در شبکه پخش کنید.';
+        document.getElementById('txStatus').textContent = 'ویدیوی QR دانلود شد.';
       };
       mediaRecorder.start();
-      // پخش سریع همه QRها و سپس توقف
-      currentChunkIndex = 0;
-      await showQR(currentChunkIndex);
+      // پخش همه قطعات پشت‌سرهم
+      currentChunkIdx = 0;
+      await showQR(currentChunkIdx);
       const playAll = setInterval(async () => {
-        currentChunkIndex++;
-        if (currentChunkIndex >= chunks.length) {
+        currentChunkIdx++;
+        if (currentChunkIdx >= chunks.length) {
           clearInterval(playAll);
           mediaRecorder.stop();
           return;
         }
-        await showQR(currentChunkIndex);
+        await showQR(currentChunkIdx);
       }, 200);
     }
 
     // ---------- گیرنده ----------
-    let rxVideo, rxCanvas, rxStream, rxInterval, rxAnimation;
-    let receivedChunks = {}; // key: index, value: base64 data
+    let rxStream = null, rxAnimation = null;
+    let receivedChunks = {};   // key: index, value: Uint8Array payload
     let totalChunksExpected = null;
     let lastScannedPacket = '';
 
     async function startReceiver() {
+      stopReceiver(); // پاک‌سازی قبلی
       try {
-        rxVideo = document.getElementById('rxVideo');
-        rxCanvas = document.getElementById('rxCanvas');
-        rxCanvas.classList.add('hidden');
         rxStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment", width: { ideal: 1280 } }
         });
-        rxVideo.srcObject = rxStream;
-        rxVideo.play();
-        document.getElementById('rxLog').textContent = 'دوربین فعال شد. QR را مقابل دوربین بگیرید...';
+        document.getElementById('rxVideo').srcObject = rxStream;
+        document.getElementById('rxVideo').play();
+        document.getElementById('rxStatus').textContent = 'دوربین فعال. QR را مقابل بگیرید.';
+        resetReceiverState();
         rxAnimation = requestAnimationFrame(scanLoopRX);
       } catch (e) {
-        document.getElementById('rxLog').textContent = 'خطا در دسترسی به دوربین.';
+        document.getElementById('rxStatus').textContent = 'خطا در دسترسی به دوربین.';
       }
     }
 
     function stopReceiver() {
-      if (rxStream) rxStream.getTracks().forEach(t => t.stop());
-      if (rxAnimation) cancelAnimationFrame(rxAnimation);
-      rxStream = null;
-      rxAnimation = null;
+      if (rxStream) {
+        rxStream.getTracks().forEach(t => t.stop());
+        rxStream = null;
+      }
+      if (rxAnimation) {
+        cancelAnimationFrame(rxAnimation);
+        rxAnimation = null;
+      }
+      document.getElementById('rxVideo').srcObject = null;
+      document.getElementById('rxStatus').textContent = 'دوربین خاموش';
     }
 
-    function scanLoopRX() {
-      if (!rxVideo || rxVideo.readyState !== rxVideo.HAVE_ENOUGH_DATA) {
-        rxAnimation = requestAnimationFrame(scanLoopRX);
-        return;
-      }
-      rxCanvas.width = rxVideo.videoWidth;
-      rxCanvas.height = rxVideo.videoHeight;
-      const ctx = rxCanvas.getContext('2d');
-      ctx.drawImage(rxVideo, 0, 0);
-      const imageData = ctx.getImageData(0, 0, rxCanvas.width, rxCanvas.height);
-      const code = jsQR(imageData.data, rxCanvas.width, rxCanvas.height, {
-        inversionAttempts: "attemptBoth",
-      });
-      if (code && code.data !== lastScannedPacket) {
-        lastScannedPacket = code.data;
-        processPacket(code.data);
-      }
-      rxAnimation = requestAnimationFrame(scanLoopRX);
-    }
-
-    function processPacket(data) {
-      const parts = data.split('|');
-      if (parts.length !== 3) return;
-      const index = parseInt(parts[0]) - 1;
-      const total = parseInt(parts[1]);
-      const base64 = parts[2];
-      if (isNaN(index) || isNaN(total) || index < 0 || total <= 0) return;
-
-      if (totalChunksExpected === null) totalChunksExpected = total;
-      if (index in receivedChunks) return; // تکراری
-
-      receivedChunks[index] = base64;
-      document.getElementById('rxLog').textContent = `تکه ${index+1} از ${total} دریافت شد.`;
-      document.getElementById('rxProgress').textContent = `${Object.keys(receivedChunks).length} از ${total} تکه`;
-
-      // اگر همه تکه‌ها جمع شد
-      if (Object.keys(receivedChunks).length === totalChunksExpected) {
-        document.getElementById('rxLog').textContent = 'همه تکه‌ها دریافت شدند!';
-        document.getElementById('downloadBtn').disabled = false;
-      }
-    }
-
-    function downloadFile() {
-      if (!totalChunksExpected || Object.keys(receivedChunks).length < totalChunksExpected) {
-        alert('هنوز همه تکه‌ها دریافت نشده‌اند.');
-        return;
-      }
-      const orderedBase64 = [];
-      for (let i = 0; i < totalChunksExpected; i++) {
-        orderedBase64.push(receivedChunks[i] || '');
-      }
-      const fullBase64 = orderedBase64.join('');
-      const byteString = atob(fullBase64);
-      const bytes = new Uint8Array(byteString.length);
-      for (let i = 0; i < byteString.length; i++) {
-        bytes[i] = byteString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes]);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'reconstructed_file';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // ریست دستی
-    function resetReceiver() {
+    function resetReceiverState() {
       receivedChunks = {};
       totalChunksExpected = null;
       lastScannedPacket = '';
       document.getElementById('downloadBtn').disabled = true;
-      document.getElementById('rxProgress').textContent = '۰ تکه دریافت شده';
+      document.getElementById('rxProgress').textContent = '۰ / ۰ قطعه';
+      document.getElementById('decodedText').textContent = 'منتظر اسکن...';
     }
+
+    function scanLoopRX() {
+      if (!rxStream) return;
+      const video = document.getElementById('rxVideo');
+      const canvas = document.getElementById('rxCanvas');
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+        rxAnimation = requestAnimationFrame(scanLoopRX);
+        return;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, canvas.width, canvas.height, {
+        inversionAttempts: "attemptBoth",
+      });
+      if (code && code.binaryData && code.binaryData.length > 0) {
+        const packetStr = code.data; // ممکنه بخوایم برای تشخیص JSON استفاده کنیم
+        if (packetStr !== lastScannedPacket) {
+          lastScannedPacket = packetStr;
+          processReceivedData(code.binaryData, code.data);
+          setTimeout(() => { lastScannedPacket = ''; }, 1500);
+        }
+      } else if (code && code.data && code.data !== lastScannedPacket) {
+        lastScannedPacket = code.data;
+        processTextData(code.data);
+        setTimeout(() => { lastScannedPacket = ''; }, 1500);
+      }
+      rxAnimation = requestAnimationFrame(scanLoopRX);
+    }
+
+    function processReceivedData(binaryData, rawText) {
+      // ابتدا بررسی کن که آیا JSON هافمن است (برای سازگاری با قبل)
+      try {
+        const obj = JSON.parse(rawText);
+        if (obj.tree && obj.bits) {
+          const decoded = huffmanDecode(obj.bits, obj.tree);
+          document.getElementById('decodedText').textContent = decoded;
+          document.getElementById('rxStatus').textContent = 'رمزگشایی هافمن انجام شد.';
+          return;
+        }
+      } catch (e) { /* JSON نیست، ادامه بده */ }
+
+      // تلاش برای خواندن پکت قطعه‌ای
+      if (binaryData.length < 4) return;
+      const view = new DataView(binaryData.buffer, binaryData.byteOffset, binaryData.byteLength);
+      const index = (view.getUint8(0) << 8) | view.getUint8(1);
+      const total = (view.getUint8(2) << 8) | view.getUint8(3);
+      if (index < 0 || total <= 0 || index >= total) return; // معتبر نیست
+      
+      if (totalChunksExpected === null) {
+        totalChunksExpected = total;
+      } else if (total !== totalChunksExpected) {
+        // اگر تغییر کرد، ریست کن
+        resetReceiverState();
+        totalChunksExpected = total;
+      }
+
+      const payload = binaryData.slice(4);
+      if (!(index in receivedChunks)) {
+        receivedChunks[index] = payload;
+        document.getElementById('rxProgress').textContent = 
+          `${Object.keys(receivedChunks).length} / ${totalChunksExpected}`;
+        document.getElementById('rxStatus').textContent = 
+          `قطعه ${index+1} دریافت شد.`;
+      }
+
+      // بررسی کامل بودن
+      if (Object.keys(receivedChunks).length === totalChunksExpected) {
+        document.getElementById('rxStatus').textContent = 'همه قطعات دریافت شدند.';
+        reconstructAndShow();
+      }
+    }
+
+    function reconstructAndShow() {
+      // مرتب‌سازی و ترکیب payloadها
+      const ordered = [];
+      for (let i = 0; i < totalChunksExpected; i++) {
+        if (receivedChunks[i] === undefined) {
+          document.getElementById('rxStatus').textContent = 'خطا: برخی قطعات گم شده‌اند.';
+          return;
+        }
+        ordered.push(receivedChunks[i]);
+      }
+      // ترکیب همه Uint8Arrayها
+      const totalLength = ordered.reduce((sum, arr) => sum + arr.length, 0);
+      const concatenated = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const arr of ordered) {
+        concatenated.set(arr, offset);
+        offset += arr.length;
+      }
+      // تلاش برای بازگشایی gzip
+      try {
+        const decompressed = pako.ungzip(concatenated, { to: 'string' });
+        document.getElementById('decodedText').textContent = decompressed;
+        document.getElementById('rxStatus').textContent = 'متن با موفقیت بازسازی شد.';
+        document.getElementById('downloadBtn').disabled = false;
+      } catch (e) {
+        // شاید فشرده نشده باشد
+        const text = new TextDecoder().decode(concatenated);
+        document.getElementById('decodedText').textContent = text;
+        document.getElementById('rxStatus').textContent = 'داده دریافت شد (بدون فشرده‌سازی).';
+        document.getElementById('downloadBtn').disabled = false;
+      }
+    }
+
+    function processTextData(text) {
+      // متن ساده (بدون باینری) – مثلاً QR قدیمی
+      // سعی کن JSON هافمن را پارس کنی
+      try {
+        const obj = JSON.parse(text);
+        if (obj.tree && obj.bits) {
+          const decoded = huffmanDecode(obj.bits, obj.tree);
+          document.getElementById('decodedText').textContent = decoded;
+          document.getElementById('rxStatus').textContent = 'هافمن شناسایی و رمزگشایی شد.';
+          return;
+        }
+      } catch (e) {}
+      // متن خام را نمایش بده
+      document.getElementById('decodedText').textContent = text;
+      document.getElementById('rxStatus').textContent = 'متن ساده دریافت شد.';
+    }
+
+    function huffmanDecode(bits, codeMap) {
+      let buffer = '', result = '';
+      for (let i = 0; i < bits.length; i++) {
+        buffer += bits[i];
+        if (codeMap[buffer] !== undefined) {
+          result += codeMap[buffer];
+          buffer = '';
+        }
+      }
+      return buffer.length ? result + ' [خطا: دنباله ناقص]' : result;
+    }
+
+    function downloadReconstructed() {
+      const text = document.getElementById('decodedText').textContent;
+      if (!text) return;
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'decoded-text.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // مدیریت پایداری برای گیرنده
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopReceiver();
+      } else {
+        // در صورت نیاز می‌توان دوباره start کرد
+      }
+    });
   </script>
 </body>
 </html>

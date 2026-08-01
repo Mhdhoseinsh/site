@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>کیوار کد فشرده</title>
-    <!-- لود کتابخانه‌ها با فال‌بک (در صورت لود نشدن، ارور نمیده) -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+    <!-- تغییر لینک‌های CDN به نسخه‌های پایدارتر cdnjs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -95,7 +95,7 @@
         </div>
 
         <!-- بخش نمایش خطا -->
-        <div class="error-msg" id="errorMsg">⚠️ کتابخانه‌ها لود نشدند. لطفاً اتصال اینترنت را بررسی کنید و صفحه را رفرش کنید.</div>
+        <div class="error-msg" id="errorMsg">⚠️ خطا در بارگذاری کتابخانه‌ها. لطفاً صفحه را رفرش کنید.</div>
 
         <button class="btn" id="genBtn">✨ تولید کیوار کد فشرده</button>
 
@@ -124,15 +124,15 @@
 
             let currentQR = null;
 
-            // --- بررسی اولیه برای اطمینان از لود شدن کتابخانه‌ها ---
+            // --- بررسی امنیتی کتابخانه‌ها قبل از هر اقدامی ---
             function checkLibs() {
                 if (typeof LZString === 'undefined') {
-                    errorMsg.textContent = '⚠️ خطا: کتابخانه فشرده‌سازی (LZString) لود نشد. صفحه را رفرش کنید.';
+                    errorMsg.textContent = '⚠️ خطا: کتابخانه فشرده‌سازی لود نشد. اینترنت را چک کنید.';
                     errorMsg.style.display = 'block';
                     return false;
                 }
-                if (typeof QRCode === 'undefined') {
-                    errorMsg.textContent = '⚠️ خطا: کتابخانه کیوار کد (QRCode) لود نشد. صفحه را رفرش کنید.';
+                if (typeof QRCode === 'undefined' || typeof QRCode.prototype === 'undefined') {
+                    errorMsg.textContent = '⚠️ خطا: کتابخانه کیوار کد لود نشد (مشکل در سی‌دی‌ان). صفحه را رفرش کنید.';
                     errorMsg.style.display = 'block';
                     return false;
                 }
@@ -167,9 +167,9 @@
                 }
             }
 
-            // --- تولید کیوار کد (اصلاح شده با correctLevel: 3) ---
+            // --- تولید کیوار کد ---
             function generate() {
-                // چک کردن لود کتابخانه‌ها قبل از شروع
+                // چک کردن کتابخانه‌ها قبل از شروع
                 if (!checkLibs()) return;
 
                 const raw = inp.value.trim();
@@ -197,17 +197,16 @@
 
                 const size = Math.min(280, Math.max(180, window.innerWidth < 480 ? 220 : 280));
                 try {
-                    // 🛑 اصلاح اصلی در این خط: به جای QRCode.CorrectLevel.H عدد 3 را قرار دادیم
+                    // ✅ این بار از عدد 3 استفاده می‌کنیم تا وابستگی به CorrectLevel نداشته باشیم
                     currentQR = new QRCode(qrContainer, {
                         text: compressed,
                         width: size,
                         height: size,
                         colorDark: '#0b2b3d',
                         colorLight: '#ffffff',
-                        correctLevel: 3 
+                        correctLevel: 3
                     });
                 } catch (e) {
-                    // اگر باز هم خطایی رخ داد آن را مدیریت میکنیم
                     errorMsg.textContent = '⚠️ خطا در تولید کیوار کد: ' + e.message;
                     errorMsg.style.display = 'block';
                     genBtn.disabled = false;
@@ -257,7 +256,7 @@
                 }
             });
 
-            // ریسایز اتوماتیک کیوار کد در هنگام تغییر سایز صفحه
+            // ریسایز اتوماتیک کیوار کد
             let resizeTimer;
             window.addEventListener('resize', function() {
                 clearTimeout(resizeTimer);

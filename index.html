@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>کیوار کد فشرده</title>
-    <!-- تغییر لینک‌های CDN به نسخه‌های پایدارتر cdnjs -->
+    <title>کیوار کد فشرده + اسکنر</title>
+    <!-- لود کتابخانه‌ها -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <!-- کتابخانه اسکنر قدرتمند -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -18,15 +21,13 @@
             background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px);
             border-radius: 28px; padding: 28px 24px 32px; width: 100%; max-width: 520px;
             box-shadow: 0 20px 60px rgba(0, 20, 30, 0.15); border: 1px solid rgba(255, 255, 255, 0.4);
+            position: relative;
         }
         h1 {
             font-size: 22px; font-weight: 700; color: #0b2b3d; text-align: center; margin-bottom: 18px;
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
-        h1 small {
-            font-size: 13px; font-weight: 400; color: #2c6e8a; background: rgba(44, 110, 138, 0.12);
-            padding: 2px 12px; border-radius: 20px;
-        }
+        h1 small { font-size: 13px; font-weight: 400; color: #2c6e8a; background: rgba(44, 110, 138, 0.12); padding: 2px 12px; border-radius: 20px; }
         textarea {
             width: 100%; height: 110px; padding: 14px 16px; border: 2px solid #dde5ed;
             border-radius: 16px; font-size: 15px; font-family: inherit; resize: vertical; outline: none;
@@ -41,6 +42,7 @@
         .stats .label { font-weight: 500; opacity: 0.75; }
         .stats .val { font-weight: 700; font-variant-numeric: tabular-nums; }
         .stats .val.green { color: #0f7b4a; }
+        .stats .val.gray { color: #5f7e92; }
         .btn {
             width: 100%; padding: 15px; background: #1f5a73; color: #fff; border: none;
             border-radius: 16px; font-size: 17px; font-weight: 700; cursor: pointer;
@@ -50,6 +52,19 @@
         .btn:hover { background: #164a60; }
         .btn:active { transform: scale(0.97); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        
+        .btn-secondary {
+            background: #e8f0f6; color: #1a4052; margin-top: 10px;
+        }
+        .btn-secondary:hover { background: #d5e1eb; }
+
+        .actions-row {
+            display: flex; gap: 12px; margin-top: 12px;
+        }
+        .actions-row .btn {
+            flex: 1; margin: 0; font-size: 14px; padding: 12px;
+        }
+
         .qr-wrap {
             margin-top: 20px; padding: 16px; background: #fafcff; border-radius: 18px;
             border: 2px dashed #cbd8e4; display: flex; flex-direction: column; align-items: center;
@@ -72,32 +87,99 @@
             color: #b13e3e; background: #ffe6e6; padding: 10px 15px; border-radius: 12px;
             margin-top: 15px; text-align: center; display: none; font-weight: 500;
         }
+
+        /* استایل مودال اسکنر */
+        .scanner-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center;
+            z-index: 999; padding: 16px;
+        }
+        .scanner-modal {
+            background: white; border-radius: 24px; padding: 24px; 
+            width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            position: relative; max-height: 90vh; overflow-y: auto;
+        }
+        .scanner-modal .close-btn {
+            position: absolute; top: 12px; left: 16px; font-size: 24px;
+            cursor: pointer; color: #666; background: #f0f0f0; 
+            width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; transition: 0.2s;
+        }
+        .scanner-modal .close-btn:hover { background: #e0e0e0; color: #000; }
+        .scanner-header {
+            text-align: center; font-size: 18px; font-weight: 700; color: #0b2b3d; margin-bottom: 16px;
+        }
+        .scanner-tabs {
+            display: flex; gap: 12px; margin-bottom: 16px;
+        }
+        .scanner-tabs button {
+            flex: 1; padding: 10px; border: 2px solid #dde5ed; background: white; 
+            border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; color: #1a4052;
+        }
+        .scanner-tabs button.active { border-color: #1f5a73; background: #e8f4fa; }
+        .scanner-tabs button:hover { background: #f5f8fc; }
+        #reader {
+            width: 100%; border-radius: 12px; overflow: hidden; background: #000;
+            min-height: 200px; display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+        #reader video { width: 100%; height: auto; display: block; }
+        #reader img { width: 100%; height: auto; display: block; }
+        .upload-area {
+            display: none; flex-direction: column; align-items: center; gap: 12px; padding: 20px 0;
+        }
+        .upload-area.active { display: flex; }
+        .upload-area input[type="file"] {
+            padding: 10px; border: 2px dashed #cbd8e4; border-radius: 12px; width: 100%; cursor: pointer;
+        }
+        .scan-result-box {
+            margin-top: 12px; padding: 14px; background: #eef8f0; border-radius: 12px; display: none;
+            border: 1px solid #b6d7c8;
+        }
+        .scan-result-box.show { display: block; }
+        .scan-result-box .result-text {
+            font-size: 16px; font-weight: 600; color: #0f4a31; word-break: break-all; margin-bottom: 8px;
+        }
+        .scan-result-box .result-actions {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .scan-result-box .result-actions button {
+            padding: 5px 14px; border: none; border-radius: 8px; background: #1f5a73; color: white; cursor: pointer; font-size: 13px;
+        }
+        .scan-result-box .result-actions button:hover { background: #164a60; }
+        .scan-result-box .result-actions button.gray { background: #dde5ed; color: #0b2b3d; }
+
         @media (max-width: 480px) {
             .box { padding: 20px 16px 24px; }
             h1 { font-size: 19px; }
             textarea { height: 90px; font-size: 14px; }
             .stats { font-size: 12px; padding: 10px 12px; flex-wrap: wrap; }
             .btn { font-size: 15px; padding: 13px; }
+            .actions-row { flex-direction: column; gap: 10px; }
         }
     </style>
 </head>
 <body>
 
     <div class="box">
-        <h1>📱 کیوار کد فشرده <small>LZ</small></h1>
+        <h1>📱 کیوار کد هوشمند <small>LZ</small></h1>
 
-        <textarea id="inp" placeholder="متن خود را وارد کنید... (متن طولانی‌تر، فشرده‌سازی بهتر)"></textarea>
+        <textarea id="inp" placeholder="متن خود را وارد کنید... (برای متن‌های کوتاه، فشرده‌سازی غیرفعال می‌شود)"></textarea>
 
         <div class="stats">
             <span><span class="label">📄 اصلی</span> <span class="val" id="origSize">0</span></span>
-            <span><span class="label">📦 فشرده</span> <span class="val green" id="compSize">0</span></span>
-            <span><span class="label">⚡ نرخ</span> <span class="val" id="ratio">—</span></span>
+            <span><span class="label">📦 فشرده</span> <span class="val gray" id="compSize">0</span></span>
+            <span><span class="label">⚡ نرخ</span> <span class="val gray" id="ratio">—</span></span>
         </div>
 
-        <!-- بخش نمایش خطا -->
-        <div class="error-msg" id="errorMsg">⚠️ خطا در بارگذاری کتابخانه‌ها. لطفاً صفحه را رفرش کنید.</div>
+        <div class="error-msg" id="errorMsg"></div>
 
         <button class="btn" id="genBtn">✨ تولید کیوار کد فشرده</button>
+        
+        <div class="actions-row">
+            <button class="btn btn-secondary" id="scanBtn">📷 اسکن کیوار کد</button>
+        </div>
 
         <div class="qr-wrap" id="qrWrap">
             <div id="qrcode"></div>
@@ -105,13 +187,41 @@
         </div>
 
         <div class="foot">
-            <span class="badge">🔐 فشرده‌سازی LZ + Base64</span>
-            &nbsp;·&nbsp; حجم کمتر، کیوار کد کوچک‌تر
+            <span class="badge">🔐 فشرده‌سازی شرطی + اسکنر هوشمند</span>
+        </div>
+    </div>
+
+    <!-- مودال اسکنر -->
+    <div class="scanner-overlay" id="scannerOverlay">
+        <div class="scanner-modal">
+            <span class="close-btn" id="closeScanner">✕</span>
+            <div class="scanner-header">📷 اسکن کیوار کد</div>
+            
+            <div class="scanner-tabs">
+                <button class="active" data-tab="camera">دوربین</button>
+                <button data-tab="upload">آپلود عکس</button>
+            </div>
+
+            <div id="reader"></div>
+            
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept="image/*" />
+                <small style="color: #666; text-align: center;">کیوار کد را در کادر انتخاب کنید</small>
+            </div>
+
+            <div class="scan-result-box" id="scanResult">
+                <div class="result-text" id="scannedText"></div>
+                <div class="result-actions">
+                    <button id="copyScanned">📋 کپی متن</button>
+                    <button class="gray" id="fillGenerator">✏️ انتقال به تولید</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         (function() {
+            // --- ارجاعات DOM ---
             const inp = document.getElementById('inp');
             const origSizeEl = document.getElementById('origSize');
             const compSizeEl = document.getElementById('compSize');
@@ -121,46 +231,66 @@
             const qrWrap = document.getElementById('qrWrap');
             const qrInfo = document.getElementById('qrInfo');
             const errorMsg = document.getElementById('errorMsg');
+            const scanBtn = document.getElementById('scanBtn');
+            const scannerOverlay = document.getElementById('scannerOverlay');
+            const closeScanner = document.getElementById('closeScanner');
+            const reader = document.getElementById('reader');
+            const scanResult = document.getElementById('scanResult');
+            const scannedText = document.getElementById('scannedText');
+            const copyScanned = document.getElementById('copyScanned');
+            const fillGenerator = document.getElementById('fillGenerator');
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('uploadArea');
+            const tabs = document.querySelectorAll('.scanner-tabs button');
 
             let currentQR = null;
+            let html5QrCode = null;
+            let scanningActive = false;
 
-            // --- بررسی امنیتی کتابخانه‌ها قبل از هر اقدامی ---
+            // --- توابع کمکی و چک کردن کتابخانه‌ها ---
             function checkLibs() {
-                if (typeof LZString === 'undefined') {
-                    errorMsg.textContent = '⚠️ خطا: کتابخانه فشرده‌سازی لود نشد. اینترنت را چک کنید.';
-                    errorMsg.style.display = 'block';
-                    return false;
-                }
-                if (typeof QRCode === 'undefined' || typeof QRCode.prototype === 'undefined') {
-                    errorMsg.textContent = '⚠️ خطا: کتابخانه کیوار کد لود نشد (مشکل در سی‌دی‌ان). صفحه را رفرش کنید.';
+                if (typeof LZString === 'undefined' || typeof QRCode === 'undefined' || typeof QRCode.prototype === 'undefined') {
+                    errorMsg.textContent = '⚠️ خطا: برخی کتابخانه‌ها لود نشدند. صفحه را رفرش کنید.';
                     errorMsg.style.display = 'block';
                     return false;
                 }
                 return true;
             }
-
             function fmt(n) { return n.toLocaleString(); }
+
+            // --- فشرده‌سازی هوشمند ---
+            function smartCompress(text) {
+                if (text.length < 25) return text;
+                return LZString.compressToBase64(text);
+            }
 
             function updateStats() {
                 if (!checkLibs()) return;
                 const raw = inp.value;
                 const rawLen = raw.length;
                 origSizeEl.textContent = fmt(rawLen);
-
                 if (rawLen === 0) {
                     compSizeEl.textContent = '0';
                     ratioEl.textContent = '—';
+                    compSizeEl.className = 'val gray';
+                    ratioEl.className = 'val gray';
                     return;
                 }
-
                 try {
-                    const compressed = LZString.compressToBase64(raw);
+                    const compressed = smartCompress(raw);
                     const compLen = compressed.length;
                     compSizeEl.textContent = fmt(compLen);
-                    const pct = ((1 - compLen / rawLen) * 100);
-                    const display = pct > 0 ? pct.toFixed(1) : pct.toFixed(1);
-                    ratioEl.textContent = (pct > 0 ? '−' : '+') + Math.abs(display) + '%';
-                    ratioEl.style.color = pct > 0 ? '#0f7b4a' : '#b13e3e';
+                    if (compressed === raw) {
+                        ratioEl.textContent = '۰٪ (کوتاه)';
+                        compSizeEl.className = 'val gray';
+                        ratioEl.className = 'val gray';
+                    } else {
+                        const pct = ((1 - compLen / rawLen) * 100);
+                        const display = pct > 0 ? pct.toFixed(1) : pct.toFixed(1);
+                        ratioEl.textContent = (pct > 0 ? '−' : '+') + Math.abs(display) + '%';
+                        compSizeEl.className = 'val green';
+                        ratioEl.className = 'val green';
+                    }
                 } catch (_) {
                     compSizeEl.textContent = '?';
                     ratioEl.textContent = '—';
@@ -169,80 +299,214 @@
 
             // --- تولید کیوار کد ---
             function generate() {
-                // چک کردن کتابخانه‌ها قبل از شروع
                 if (!checkLibs()) return;
-
                 const raw = inp.value.trim();
-                if (!raw) {
-                    alert('لطفاً متنی وارد کنید.');
-                    return;
-                }
-
+                if (!raw) { alert('لطفاً متنی وارد کنید.'); return; }
                 let compressed;
-                try {
-                    compressed = LZString.compressToBase64(raw);
-                } catch (e) {
-                    alert('خطا در فشرده‌سازی متن. لطفاً دوباره تلاش کنید.');
-                    return;
-                }
-
-                if (currentQR) {
-                    try { currentQR.clear(); } catch (_) {}
-                    currentQR = null;
-                }
+                try { compressed = smartCompress(raw); } catch (e) { alert('خطا در فشرده‌سازی.'); return; }
+                if (currentQR) { try { currentQR.clear(); } catch (_) {} currentQR = null; }
                 qrContainer.innerHTML = '';
-
                 genBtn.disabled = true;
                 genBtn.textContent = '⏳ در حال تولید …';
-
                 const size = Math.min(280, Math.max(180, window.innerWidth < 480 ? 220 : 280));
                 try {
-                    // ✅ این بار از عدد 3 استفاده می‌کنیم تا وابستگی به CorrectLevel نداشته باشیم
                     currentQR = new QRCode(qrContainer, {
-                        text: compressed,
-                        width: size,
-                        height: size,
-                        colorDark: '#0b2b3d',
-                        colorLight: '#ffffff',
-                        correctLevel: 3
+                        text: compressed, width: size, height: size,
+                        colorDark: '#0b2b3d', colorLight: '#ffffff', correctLevel: 3
                     });
                 } catch (e) {
-                    errorMsg.textContent = '⚠️ خطا در تولید کیوار کد: ' + e.message;
+                    errorMsg.textContent = '⚠️ خطا: ' + e.message;
                     errorMsg.style.display = 'block';
-                    genBtn.disabled = false;
-                    genBtn.textContent = '✨ تولید کیوار کد فشرده';
+                    genBtn.disabled = false; genBtn.textContent = '✨ تولید کیوار کد فشرده';
                     return;
                 }
-
                 const rawLen = raw.length;
                 const compLen = compressed.length;
-                const saved = rawLen - compLen;
-                const pct = rawLen > 0 ? ((1 - compLen / rawLen) * 100) : 0;
-                const sign = pct > 0 ? '−' : '+';
-
-                qrInfo.innerHTML = '📦 متن فشرده شده: <b>' + fmt(compLen) + '</b> کاراکتر ' +
-                    '(صرفه‌جویی: <b>' + sign + Math.abs(pct).toFixed(1) + '%</b> ، ' +
-                    fmt(Math.abs(saved)) + ' کاراکتر)';
+                let infoText = '';
+                if (compressed === raw) {
+                    infoText = '📄 متن کوتاه است، فشرده‌سازی انجام نشد.';
+                } else {
+                    const saved = rawLen - compLen;
+                    const pct = rawLen > 0 ? ((1 - compLen / rawLen) * 100) : 0;
+                    const sign = pct > 0 ? '−' : '+';
+                    infoText = '📦 فشرده شده: <b>' + fmt(compLen) + '</b> کاراکتر (صرفه‌جویی: <b>' + sign + Math.abs(pct).toFixed(1) + '%</b>)';
+                }
+                qrInfo.innerHTML = infoText;
                 qrInfo.classList.add('show');
                 qrWrap.classList.add('has-qr');
                 errorMsg.style.display = 'none';
-
                 genBtn.disabled = false;
                 genBtn.textContent = '✨ تولید کیوار کد فشرده';
                 qrWrap.dataset.compressed = compressed;
             }
 
-            inp.addEventListener('input', updateStats);
-            genBtn.addEventListener('click', generate);
+            // --- اسکنر هوشمند (دیکامپرس خودکار) ---
+            function smartDecompress(text) {
+                // اگر متن فشرده نشده باشد، همان را برمیگرداند
+                try {
+                    const decompressed = LZString.decompressFromBase64(text);
+                    return decompressed || text; // اگر null برگشت یعنی عادی است
+                } catch (e) {
+                    return text;
+                }
+            }
 
-            inp.addEventListener('keydown', function(e) {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    generate();
+            function handleScanSuccess(decodedText, decodedResult) {
+                // توقف اسکن
+                if (html5QrCode) {
+                    html5QrCode.stop().then(() => {
+                        html5QrCode.clear();
+                        reader.innerHTML = ''; // پاکسازی ویدیو
+                    }).catch(() => {});
+                }
+                scanningActive = false;
+
+                // دیکامپرس هوشمند
+                const originalText = smartDecompress(decodedText);
+                scannedText.textContent = originalText;
+                scanResult.classList.add('show');
+                
+                // ذخیره در دیتاست برای کپی و انتقال
+                document.querySelector('.scanner-modal').dataset.fullText = originalText;
+                
+                // نمایش باکس اسکن
+                reader.style.display = 'none';
+                uploadArea.classList.remove('active');
+            }
+
+            // --- مدیریت مودال اسکنر ---
+            function openScanner() {
+                scannerOverlay.style.display = 'flex';
+                scanResult.classList.remove('show');
+                reader.style.display = 'block';
+                document.querySelector('.scanner-modal').dataset.fullText = '';
+                
+                // فعال‌سازی تب دوربین
+                setActiveTab('camera');
+                startCamera();
+            }
+
+            function closeScannerModal() {
+                scannerOverlay.style.display = 'none';
+                if (html5QrCode) {
+                    html5QrCode.stop().then(() => {
+                        html5QrCode.clear();
+                        reader.innerHTML = '';
+                    }).catch(() => {});
+                }
+                scanningActive = false;
+            }
+
+            function setActiveTab(tab) {
+                tabs.forEach(t => t.classList.remove('active'));
+                const activeBtn = Array.from(tabs).find(t => t.dataset.tab === tab);
+                if(activeBtn) activeBtn.classList.add('active');
+                
+                if (tab === 'camera') {
+                    uploadArea.classList.remove('active');
+                    reader.style.display = 'block';
+                    fileInput.value = ''; // ریست فایل
+                    if(!scanningActive) startCamera();
+                } else {
+                    uploadArea.classList.add('active');
+                    reader.style.display = 'none';
+                    if (html5QrCode) {
+                        html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(() => {});
+                    }
+                    scanningActive = false;
+                }
+            }
+
+            function startCamera() {
+                if (html5QrCode) {
+                    html5QrCode.clear();
+                    reader.innerHTML = '';
+                }
+                reader.innerHTML = '<p style="color:white; font-size:14px;">در حال دریافت دسترسی دوربین...</p>';
+                html5QrCode = new Html5Qrcode("reader");
+                
+                const config = {
+                    fps: 15, // سرعت بالا
+                    qrbox: { width: 250, height: 250 } // باکس تمرکز
+                };
+                
+                html5QrCode.start({ facingMode: "environment" }, config, handleScanSuccess, (err) => {
+                    // خطای اسکن را نادیده می‌گیریم (چون مدام تکرار می‌شود)
+                }).then(() => {
+                    scanningActive = true;
+                }).catch((err) => {
+                    reader.innerHTML = `<p style="color:#ffcccc; text-align:center; padding:20px; font-size:14px;">❌ خطا در دسترسی به دوربین:<br>${err}</p>`;
+                });
+            }
+
+            // --- رویدادهای اسکنر ---
+            scanBtn.addEventListener('click', openScanner);
+            closeScanner.addEventListener('click', closeScannerModal);
+            scannerOverlay.addEventListener('click', (e) => {
+                if (e.target === scannerOverlay) closeScannerModal();
+            });
+
+            // تب‌ها
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    setActiveTab(tab.dataset.tab);
+                });
+            });
+
+            // آپلود فایل
+            fileInput.addEventListener('change', function(e) {
+                const file = this.files[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { // اگر بالای ۵ مگابایت باشد
+                    alert('حجم عکس نباید بیشتر از ۵ مگابایت باشد.');
+                    this.value = '';
+                    return;
+                }
+
+                // آماده‌سازی اسکنر
+                if (html5QrCode) {
+                    html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(() => {});
+                    reader.innerHTML = '';
+                }
+
+                html5QrCode = new Html5Qrcode("reader");
+                html5QrCode.scanFile(file, true)
+                    .then(result => {
+                        handleScanSuccess(result, null);
+                    })
+                    .catch(err => {
+                        reader.innerHTML = `<p style="color:#ffcccc; text-align:center; padding:20px;">❌ کیوار کد در تصویر یافت نشد.</p>`;
+                    });
+            });
+
+            // دکمه‌های نتیجه اسکن
+            copyScanned.addEventListener('click', () => {
+                const text = document.querySelector('.scanner-modal').dataset.fullText;
+                if (text && navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        const old = copyScanned.textContent;
+                        copyScanned.textContent = '✅ کپی شد!';
+                        setTimeout(() => copyScanned.textContent = old, 1500);
+                    });
                 }
             });
 
-            // کلیک روی کیوار کد برای کپی متن فشرده
+            fillGenerator.addEventListener('click', () => {
+                const text = document.querySelector('.scanner-modal').dataset.fullText;
+                if (text) {
+                    inp.value = text;
+                    updateStats();
+                    closeScannerModal();
+                }
+            });
+
+            // --- رویدادهای صفحه اصلی ---
+            inp.addEventListener('input', updateStats);
+            genBtn.addEventListener('click', generate);
+            inp.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); generate(); }
+            });
+
             qrWrap.addEventListener('click', function(e) {
                 if (e.target.closest('.btn') || e.target.closest('.qr-info')) return;
                 const compressed = qrWrap.dataset.compressed;
@@ -254,28 +518,6 @@
                         setTimeout(() => { qrInfo.innerHTML = old; }, 1800);
                     }).catch(() => {});
                 }
-            });
-
-            // ریسایز اتوماتیک کیوار کد
-            let resizeTimer;
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
-                    if (currentQR && qrWrap.dataset.compressed) {
-                        const text = qrWrap.dataset.compressed;
-                        if (!text) return;
-                        const size = Math.min(280, Math.max(180, window.innerWidth < 480 ? 220 : 280));
-                        try {
-                            currentQR.clear();
-                            currentQR = null;
-                            qrContainer.innerHTML = '';
-                            currentQR = new QRCode(qrContainer, {
-                                text: text, width: size, height: size,
-                                colorDark: '#0b2b3d', colorLight: '#ffffff', correctLevel: 3
-                            });
-                        } catch (_) {}
-                    }
-                }, 400);
             });
 
             updateStats();
